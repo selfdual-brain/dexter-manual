@@ -1,9 +1,7 @@
 Dexter
 ======
 
-**Dexter** is a platform for simulating several DEX variants.
-
-Dexter is implemented in Anylogic.
+**Dexter** is a platform for simulating several DEX variants. Dexter is implemented in Anylogic.
 
 Contents
 --------

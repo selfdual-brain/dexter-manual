@@ -4,7 +4,7 @@ Quick start guide
 In this chapter we summarize steps required to run Dexter on your computer.
 
 Step 0: Supported platforms and hardware requirements
-=====================================================
+-----------------------------------------------------
 
 Officially, Anylogic claims to be tested and supported on these platforms:
 
@@ -37,7 +37,7 @@ Running Dexter on a machine with lower capabilities can be uncomfortable.
 Caution: running really long simulations may require way bigger RAM amounts.
 
 Step 1: Download Dexter
-=======================
+-----------------------
 
 Go to this Github repository:
 
@@ -55,7 +55,7 @@ directory. There are 2 files there:
 
 
 Step 2: Download and install Anylogic
-=====================================
+-------------------------------------
 
 Anylogic can be downloaded from manufacturer's website:
 
@@ -66,7 +66,7 @@ Pick the version compatible with your platform.
 Dexter was tested on Anylogic version 8.7.9.
 
 Step 3: Obtain Anylogic license
-===============================
+-------------------------------
 
 Anylogic is a commercial product. You must purchase a license to run it.
 
@@ -79,7 +79,7 @@ both are available inside the app - just launch Anylogic and then go to **Help\A
 
 
 Step 4: Open Dexter project
-===========================
+---------------------------
 
 1. Launch Anylogic.
 2. Close the blue "welcome" window (check the "do not show this window in the future" checkbox).
@@ -94,7 +94,7 @@ Once the Dexter project is successfully opened in Anylogic, you should see this:
 
 
 Step 5: Configure a simulation experiment
-=========================================
+-----------------------------------------
 
 In the project tree (left side of the window) find nodes with blue "X" icon. These are defined simulation experiments.
 Selecting one of them (mouse click) will display the configuration of given experiment (visible in the rightmost pane):
@@ -105,7 +105,7 @@ Selecting one of them (mouse click) will display the configuration of given expe
 
 
 Step 6: Run simulation experiment
-=================================
+---------------------------------
 
 Initially, there are 4 simulation experiments defined: Sandbox, Teal, Turquoise, Uniswap.
 Right-clicking on an experiment brings a context menu with **Run** option (among others).
