@@ -1,1 +1,4 @@
+Simulation structure
+====================
+
 *UNDER CONSTRUCTION*
