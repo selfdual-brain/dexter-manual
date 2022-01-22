@@ -1,5 +1,5 @@
-Technological context
-=====================
+02. Technological context
+=========================
 
 In this chapter we do a short overview of relevant technologies - either used in the simulator or related to the
 simulated solutions.

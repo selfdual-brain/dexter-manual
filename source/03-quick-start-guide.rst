@@ -1,5 +1,5 @@
-Quick start guide
-=================
+03. Quick start guide
+=====================
 
 In this chapter we summarize steps required to run Dexter on your computer.
 
