@@ -1,5 +1,5 @@
-Model data types
-================
+04. Model data types
+====================
 
 In this chapter we do an overview of data types used in the simulator. This is pretty technical but needed to properly
 explain the data model underpinning Dexter. Skip this chapter (and following two chapters) if you are not interested

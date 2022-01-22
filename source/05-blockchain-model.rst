@@ -1,5 +1,5 @@
-Blockchain model
-================
+05. Blockchain model
+====================
 
 A DEX - as being deployed on a blockchain - has 4 conceptual "perspectives":
 

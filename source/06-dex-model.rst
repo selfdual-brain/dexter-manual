@@ -1,5 +1,5 @@
-DEX model
-=========
+06. DEX model
+=============
 
 There is a general model of a DEX (derived from the TLA+ spec we mentioned before) which sits at the conceptual center
 of Dexter design. Only one part of this model - the executor - is pluggable, so that comparative simulation of various

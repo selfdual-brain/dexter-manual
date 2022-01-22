@@ -1,4 +1,4 @@
-Trader models
-=============
+09. Trader models
+=================
 
 *UNDER CONSTRUCTION*

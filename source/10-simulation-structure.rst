@@ -1,4 +1,4 @@
-Simulation structure
-====================
+10. Simulation structure
+========================
 
 *UNDER CONSTRUCTION*
