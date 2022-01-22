@@ -27,7 +27,7 @@ Surrounding the network of validators is the (usually much larger) network of bl
 client picks (arbitrarily) some validator and uses it as a gateway to the blockchain. In theory this selection should
 not influence the operation of a client, because all validators offer semantically equivalent API for clients.
 
-.. image:: pictures/06/real-blockchain-network.png
+.. image:: pictures/05/real-blockchain-network.png
     :width: 100%
     :align: center
 
@@ -35,29 +35,56 @@ For the purpose of DEX simulation we do not simulate the actual network of valid
 agent representing the blockchain, while clients are also represented as agents, and the communication between
 agents and the blockchain is materialized as agent-to-agent message passing.
 
-.. image:: pictures/06/mocked-blockchain-network.png
+.. image:: pictures/05/mocked-blockchain-network.png
     :width: 100%
     :align: center
 
-Caution: there are some additional agents involved in the design so to accommodate the simulation of Internet. Go to
-chapter 10 for more details on this.
-
+Caution: there are some additional agents involved in the design so to accommodate the simulation of network
+communication between clients and the blockchain. Go to chapter 10 for more details on this.
 
 Blockchain accounts
 -------------------
 
-sfsd
+A blockchain account is normally identified by a cryptographic public key (of public-private key pair). For the
+purpose of the simulation we stripped cryptography and the account id is represented as a (randomly generated) hash
+value.
 
 Client-Blockchain communication protocol
 ----------------------------------------
 
-vdvd
+There are two types of messages that a client can send to the blockchain:
 
-Transaction types
------------------
+ - transactions
+ - queries
 
+There is no response for a transaction.
 
-fsdf
+On the other hand, queries follow request-response pattern.
+
+Transactions
+------------
+
+A transaction has the following structure:
+
+.. code:: scala
+
+       creator: AccountAddress
+       clientTime: SimulationTime
+       ttl: BlockchainTime
+       body: DexTransactionBody
+       hash: Hash //plays the role of transaction id
+
+A transaction gets executed and this execution changes the state of the blockchain computer.
+
+Fields explained:
+
+:creator: account address; the transaction will be executed on behalf of this account
+:clientTime: real time of the client at the moment of sending this transaction
+:ttl: latest blockchain time for this transaction; this transaction should not get executed at later blockchain time
+:body: contains the "business-level" information, specific to transaction type (see below)
+:hash: transaction id; in real life it would be the real hash of transaction binary representation, but we just mock
+       this with randomly-generates hashes
+
 
 Queries types
 -------------

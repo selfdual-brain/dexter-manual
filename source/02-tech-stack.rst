@@ -7,12 +7,15 @@ simulated solutions.
 Blockchain
 ----------
 
-A peer-2-peer network of computers materializing together an idea of consensus-based virtual computer. The consensus
+A peer-2-peer network of computers materializing together an idea of consensus-based **virtual computer**. The consensus
 protocol protect this virtual computer against hacking attacks (as opposed to physical computers that can always
 be hacked).
 
-Examples of (public) blockchains: Bitcoin, Ethereum, Cardano.
+The operations of this virtual computer are called **transactions**. The history of all transactions executed on the
+blockchain virtual computer since its launch is what is called the "shared ledger". The ledger is typically partitioned
+into **blocks**, hence it can be seen as a sequence of blocks.
 
+Examples of (public) blockchains: Bitcoin, Ethereum, Cardano.
 
 Cryptocurrency
 --------------

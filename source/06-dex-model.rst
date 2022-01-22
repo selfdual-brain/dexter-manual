@@ -22,16 +22,6 @@ This UML diagram covers the whole model:
     :width: 100%
     :align: center
 
-Data types
-----------
-
-
-
-Client <-> Blockchain communication model
------------------------------------------
-
-
-
 Coins and tokens
 ----------------
 
