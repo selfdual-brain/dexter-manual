@@ -18,7 +18,7 @@ consensus delays for example).
 
 This UML diagram covers the whole model:
 
-.. image:: pictures/04/dex-uml-model.png
+.. image:: pictures/06/dex-uml-model.png
     :width: 100%
     :align: center
 

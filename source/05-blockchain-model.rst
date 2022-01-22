@@ -18,7 +18,29 @@ Here we focus on the the way we mock blockchain architecture in the simulator. T
 Real blockchain vs blockchain mock
 ----------------------------------
 
-dsfsd
+A real blockchain is a P2P network of nodes (validators) building blocks and collectively running a consensus protocol
+to come up with ever-growing sequence of blocks. The goal of underlying consensus protocol is to ensure that the
+sequence of blocks - once established up to position N - is visible to every node as such (i.e. is "finalized") and
+the sequence can never be changed.
+
+Surrounding the network of validators is the (usually much larger) network of blockchain clients. Every blockchain
+client picks (arbitrarily) some validator and uses it as a gateway to the blockchain. In theory this selection should
+not influence the operation of a client, because all validators offer semantically equivalent API for clients.
+
+.. image:: pictures/06/real-blockchain-network.png
+    :width: 100%
+    :align: center
+
+For the purpose of DEX simulation we do not simulate the actual network of validators. Instead we just have a single
+agent representing the blockchain, while clients are also represented as agents, and the communication between
+agents and the blockchain is materialized as agent-to-agent message passing.
+
+.. image:: pictures/06/mocked-blockchain-network.png
+    :width: 100%
+    :align: center
+
+Caution: there are some additional agents involved in the design so to accommodate the simulation of Internet. Go to
+chapter 10 for more details on this.
 
 
 Blockchain accounts
