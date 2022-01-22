@@ -16,29 +16,29 @@ A DEX - as being deployed on a blockchain - has 4 conceptual "perspectives":
 Here we focus on the the way we mock blockchain architecture in the simulator. This covers perspectives (2) and (3).
 
 Real blockchain vs blockchain mock
-==================================
+----------------------------------
 
 dsfsd
 
 
 Blockchain accounts
-===================
+-------------------
 
 sfsd
 
 Client-Blockchain communication protocol
-========================================
+----------------------------------------
 
 vdvd
 
 Transaction types
-=================
+-----------------
 
 
 fsdf
 
 Queries types
-=============
+-------------
 
 sfsd
 
