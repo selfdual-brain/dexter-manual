@@ -32,3 +32,11 @@ Key design decisions
 1. Use Anylogic as the main development platform.
 2. Use agent-based simulation as the simulator construction paradigm.
 3. Maintain a separate JVM-based library for data model and core business logic.
+
+TLA+ specification
+------------------
+
+Dexter is based on a formal DEX model specification in TLA+. The specification can be found here:
+
+https://github.com/onomyprotocol/specs/
+

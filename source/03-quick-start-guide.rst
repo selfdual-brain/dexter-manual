@@ -104,7 +104,7 @@ Selecting one of them (mouse click) will display the configuration of given expe
     :align: center
 
 
-Step 6: Run simulation experiment
+Step 6: Run a simulation experiment
 ---------------------------------
 
 Initially, there are 4 simulation experiments defined: Sandbox, Teal, Turquoise, Uniswap.
