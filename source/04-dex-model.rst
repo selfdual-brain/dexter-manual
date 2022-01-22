@@ -2,28 +2,28 @@ DEX model
 =========
 
 There is a general model of a DEX (derived from the TLA+ spec we mentioned before) which sits at the conceptual center
-of Dexter design. On top of this, the piece of this model called "executor" is pluggable, so that comparative
-simulation of various executors is possible.
+of Dexter design. Only one part of this model - the executor - is pluggable, so that comparative simulation of various
+executors ca nbe achieved.
 
-In this chapter we describe this common base model, while the next chapter is devoted to the description of various
-executors pre-installed in current version of Dexter.
+In this chapter we describe this common base model, while the next chapter is devoted to the various executors
+pre-installed in the current version of Dexter.
 
 Please notice that a DEX - as being deployed on a blockchain - has 4 conceptual "perspectives":
 
- 1. End-user perspective: this covers the view of an end-user, so how the usage of the DEX looks like in practice; this would
-    normally coincide with the GUI of the DEX client
+ 1. End-user perspective: this covers the view of an end-user, so how the usage of the DEX looks like in practice; this
+    would normally coincide with the GUI of the DEX client.
  2. Client-api perspective: this covers the view of a client-developer; is is composed of APIs available to the DEX client
     software; this APIs may communicate to on-chain and off-chain components
- 3  Blockchain perspective: this covers the view of a DEX developer and includes all the blockchain-specific solutions
-    used to implement the DEX
- 4  Abstract model perspective: this covers the internal working of a DEX, abstracting away from design choices specific
+ 3. Blockchain perspective: this covers the view of a DEX developer and includes all the blockchain-specific solutions.
+    used to implement the DEX.
+ 4. Abstract model perspective: this covers the internal working of a DEX, abstracting away from design choices specific
     to a given blockchain where the DEX will be deployed; in the implementation phase this model would typically be
-    mapped to a smart-contract
+    mapped to a smart-contract.
 
 Here we focus on the abstract model (i.e. perspective 4) exclusively. We make only a very basic assumptions about the
 underlying blockchain.
 
-Caution: Our goal in this chapter is to explain the DEX model as it exists in the simulator, not the DEX model to be
+**Caution:** Our goal in this chapter is to explain the DEX model as it exists in the simulator, not the DEX model to be
 used in a production implementation of DEX (if any such implementation will happen to be created). In particular there
 are several simplifications in place caused by the fact, that we do not simulate the actual blockchain. Rather the
 blockchain functionality is mocked, and we only simulate some key characteristics of blockchain behaviour (like
@@ -75,7 +75,8 @@ transactions execution, namely the following invariant holds:
 
 Coins and tokens
 ----------------
-wefwe
+
+
 
 Coin pairs and normalization
 ----------------------------
@@ -131,6 +132,10 @@ sfsd
 Data stored in a trader account
 -------------------------------
 sfsd
+
+
+Execution of orders
+-------------------
 
 
 
