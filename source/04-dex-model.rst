@@ -1,10 +1,14 @@
 DEX model
 =========
 
-Dexter is based on a shared DEX "general" model, while only a central piece of the model (execution of orders) is
-pluggable and subject to comparative simulation. In this chapter we describe this common base.
+There is a general model of a DEX (derived from the TLA+ spec we mentioned before) which sits at the conceptual center
+of Dexter design. On top of this, the piece of this model called "executor" is pluggable, so that comparative
+simulation of various executors is possible.
 
-Please notice that a DEX, as being deployed on a blockchain, can 4 conceptual "perspectives":
+In this chapter we describe this common base model, while the next chapter is devoted to the description of various
+executors pre-installed in current version of Dexter.
+
+Please notice that a DEX - as being deployed on a blockchain - has 4 conceptual "perspectives":
 
  1. End-user perspective: this covers the view of an end-user, so how the usage of the DEX looks like in practice; this would
     normally coincide with the GUI of the DEX client
@@ -16,11 +20,14 @@ Please notice that a DEX, as being deployed on a blockchain, can 4 conceptual "p
     to a given blockchain where the DEX will be deployed; in the implementation phase this model would typically be
     mapped to a smart-contract
 
-Here we focus on the abstract model exclusively. We make only a very basic assumptions about the underlying blockchain.
+Here we focus on the abstract model (i.e. perspective 4) exclusively. We make only a very basic assumptions about the
+underlying blockchain.
 
 Caution: Our goal in this chapter is to explain the DEX model as it exists in the simulator, not the DEX model to be
-used in a production implementation of DEX (if any such implementation will happen to be created). In the simulation
-we (obviously) do some simplifications.
+used in a production implementation of DEX (if any such implementation will happen to be created). In particular there
+are several simplifications in place caused by the fact, that we do not simulate the actual blockchain. Rather the
+blockchain functionality is mocked, and we only simulate some key characteristics of blockchain behaviour (like
+consensus delays for example).
 
 This UML diagram covers the whole model:
 
