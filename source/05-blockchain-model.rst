@@ -72,9 +72,10 @@ A transaction has the following structure:
        clientTime: SimulationTime
        ttl: BlockchainTime
        body: DexTransactionBody
-       hash: Hash //plays the role of transaction id
+       hash: Hash
 
-A transaction gets executed and this execution changes the state of the blockchain computer.
+A transaction is in fact an operation to be executed on the blockchain virtual computer, i.e this execution changes the
+state of the blockchain computer.
 
 Fields explained:
 
@@ -85,9 +86,73 @@ Fields explained:
 :hash: transaction id; in real life it would be the real hash of transaction binary representation, but we just mock
        this with randomly-generates hashes
 
+Execution of a transaction may fail. Such failure is signaled in the diagnostic log.
+
+Transaction body
+----------------
+
+Transaction body can have one of the following structures:
+
+**Deposit** - transfer tokens from the reserve to trader account
+
+.. code:: scala
+
+       accountName: String
+       amount: FPNumber
+       coin: Coin
+
+**Withdraw** - transfer tokens from trader account back to reserve
+
+.. code:: scala
+
+       amount: FPNumber
+       coin: Coin
+
+**Init AMM** - initializes a market
+
+.. code:: scala
+
+       aCoin: Coin
+       bCoin: Coin
+       aCoinAmount: FPNumber
+       bCoinAmount: FPNumber
+
+**Add liquidity** - adds liquidity to the AMM at the selected market; this operation creates new liquidity coins
+
+.. code:: scala
+
+       marketId: CoinPair //must be a normalized pair
+       amountCoin: Coin //points to one of coins in the market it
+       amount: FPNumber //amount of selected coin (the other amount will be automatically calculated)
+
+**Withdraw liquidity** - burns liquidity coins and decreases balances of the AMM at the selected market
+
+.. code:: scala
+       marketId: CoinPair
+       amountOfLiquidityCoinsToBurn: FPNumber
+
+**Add order** - registers new order on the exchange (i.e adds to the relevant order book)
+
+.. code:: scala
+
+       orderDirectionFrom: Coin //coin to be sold
+       orderDirectionTo: Coin //coin to be bought
+       orderType: OrderType //LIMIT or STOP
+       price: Fraction
+       amount: FPNumber
+       expirationTimepoint: SimulationTime
+       isShort: Boolean
+
+**Close order** - prematurely terminates an order; the order will be removed from order book
+
+.. code:: scala
+
+       askCoin: Coin
+       bidCoin: Coin
+       positionId: Hash
 
 Queries types
 -------------
 
-sfsd
+The following qu
 
