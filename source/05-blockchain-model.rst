@@ -36,7 +36,7 @@ agent representing the blockchain, while clients are also represented as agents,
 agents and the blockchain is materialized as agent-to-agent message passing.
 
 .. image:: pictures/05/mocked-blockchain-network.png
-    :width: 100%
+    :width: 80%
     :align: center
 
 Caution: there are some additional agents involved in the design so to accommodate the simulation of network
@@ -79,12 +79,14 @@ state of the blockchain computer.
 
 Fields explained:
 
-:creator: account address; the transaction will be executed on behalf of this account
+:creator:    account address; the transaction will be executed on behalf of this account; in other words this is the
+             trader's blockchain identity
 :clientTime: real time of the client at the moment of sending this transaction
-:ttl: latest blockchain time for this transaction; this transaction should not get executed at later blockchain time
-:body: contains the "business-level" information, specific to transaction type (see below)
-:hash: transaction id; in real life it would be the real hash of transaction binary representation, but we just mock
-       this with randomly-generates hashes
+:ttl:        latest blockchain time for this transaction; this transaction should not get executed at later blockchain
+             time
+:body:       contains the "business-level" information, specific to transaction type (see below)
+:hash:       transaction id; in real life it would be the real hash of transaction binary representation, but we just
+             mock this with randomly-generates hashes
 
 Execution of a transaction may fail. Such failure is signaled in the diagnostic log.
 
@@ -93,66 +95,142 @@ Transaction body
 
 Transaction body can have one of the following structures:
 
-**Deposit** - transfer tokens from the reserve to trader account
+Deposit
+^^^^^^^
+
+Transfers tokens from the reserve to trader's account. At the business level it corresponds to minting tokens.
 
 .. code:: scala
 
-       accountName: String
-       amount: FPNumber
-       coin: Coin
+       Deposit(
+         accountName: String,
+         amount: FPNumber,
+         coin: Coin
+       )
 
-**Withdraw** - transfer tokens from trader account back to reserve
+Withdraw
+^^^^^^^^
 
-.. code:: scala
-
-       amount: FPNumber
-       coin: Coin
-
-**Init AMM** - initializes a market
+Transfers tokens from trader's account back to reserve. At the business level it corresponds to burning tokens.
 
 .. code:: scala
 
-       aCoin: Coin
-       bCoin: Coin
-       aCoinAmount: FPNumber
-       bCoinAmount: FPNumber
+       Withdraw(
+         amount: FPNumber,
+         coin: Coin
+       )
 
-**Add liquidity** - adds liquidity to the AMM at the selected market; this operation creates new liquidity coins
+Init AMM
+^^^^^^^^
 
-.. code:: scala
-
-       marketId: CoinPair //must be a normalized pair
-       amountCoin: Coin //points to one of coins in the market it
-       amount: FPNumber //amount of selected coin (the other amount will be automatically calculated)
-
-**Withdraw liquidity** - burns liquidity coins and decreases balances of the AMM at the selected market
-
-.. code:: scala
-       marketId: CoinPair
-       amountOfLiquidityCoinsToBurn: FPNumber
-
-**Add order** - registers new order on the exchange (i.e adds to the relevant order book)
+Initializes a market. This will succeed only for an uninitialized market. Specified amounts of both coins will be
+transferred from trader's account.
 
 .. code:: scala
 
-       orderDirectionFrom: Coin //coin to be sold
-       orderDirectionTo: Coin //coin to be bought
-       orderType: OrderType //LIMIT or STOP
-       price: Fraction
-       amount: FPNumber
-       expirationTimepoint: SimulationTime
-       isShort: Boolean
+       InitAMM(
+         aCoin: Coin,
+         bCoin: Coin,
+         aCoinAmount: FPNumber,
+         bCoinAmount: FPNumber
+       )
 
-**Close order** - prematurely terminates an order; the order will be removed from order book
+Add liquidity
+^^^^^^^^^^^^^
+
+Adds liquidity to the AMM at the selected market. This operation creates new liquidity coins and transfers them
+to the trader's account. This is how a trader becomes a liquidity provider.
 
 .. code:: scala
 
-       askCoin: Coin
-       bidCoin: Coin
-       positionId: Hash
+       AddLiquidity(
+         marketId: CoinPair, //must be a normalized pair
+         amountCoin: Coin, //points to one of coins in the market it
+         amount: FPNumber //amount of selected coin (the other amount will be automatically calculated)
+       )
+Withdraw liquidity
+^^^^^^^^^^^^^^^^^^
 
-Queries types
--------------
+Burns liquidity coins and decreases balances of the AMM at the selected market. This is how a liquidity provider
+consumes his profits.
 
-The following qu
+.. code:: scala
 
+       WithdrawLiquidity(
+         marketId: CoinPair,
+         amountOfLiquidityCoinsToBurn: FPNumber
+       )
+
+Add order
+^^^^^^^^^
+
+Registers new order on the exchange (i.e adds it to the relevant order book). Upon registering the new order becomes
+ready for execution.
+
+.. code:: scala
+
+       AddOrder(
+         orderDirectionFrom: Coin, //coin to be sold
+         orderDirectionTo: Coin, //coin to be bought
+         orderType: OrderType, //LIMIT or STOP
+         price: Fraction,
+         amount: FPNumber, amount of sell coin
+         expirationTimepoint: SimulationTime,
+         isShort: Boolean
+       )
+
+Close order
+^^^^^^^^^^^
+
+Terminates an order. The order will be removed from order book.
+
+.. code:: scala
+
+       CloseOrder(
+         askCoin: Coin,
+         bidCoin: Coin,
+         positionId: Hash
+       )
+
+Queries
+-------
+
+Every query has separate request and response structures.
+
+Currently only one type of query is utilized in the simulator design - **GetAccountSnapshot**. With this query we
+simulate a typical activity of a trader, namely - checking current state of his account. A trader makes his trading
+decision with a fresh account snapshot at hand.
+
+**Request**
+
+.. code:: scala
+
+       GetAccountSnapshotRequest(
+         creator: AccountAddress,
+         clientTime: SimulationTime,
+         requestId: Long
+       )
+
+**Response**
+
+.. code:: scala
+
+      GetAccountSnapshotResponse(
+        requestId: Long,
+        dexTimepoint: SimulationTime,
+        accountSnapshot: AccountSnapshot
+      )
+
+AccountSnapshot is the following structure:
+
+.. code:: scala
+
+      AccountSnapshot(
+        blockchainTime: BlockchainTime,
+        coinsWithNonZeroBalance: Array[Coin],
+        coin2FreeBalance: Map[Coin, FPNumber],
+        coin2LockedBalance: Map[Coin, FPNumber],
+        activePositions: Array[Position],
+        liquidityParticipation: Map[CoinPair, FPNumber],
+        initializedMarkets: Map[CoinPair, (FPNumber, FPNumber)]
+     )
