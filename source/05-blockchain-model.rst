@@ -36,7 +36,7 @@ agent representing the blockchain, while clients are also represented as agents,
 agents and the blockchain is materialized as agent-to-agent message passing.
 
 .. image:: pictures/05/mocked-blockchain-network.png
-    :width: 80%
+    :width: 90%
     :align: center
 
 Caution: there are some additional agents involved in the design so to accommodate the simulation of network
@@ -60,6 +60,9 @@ There are two types of messages that a client can send to the blockchain:
 There is no response for a transaction.
 
 On the other hand, queries follow request-response pattern.
+
+Caution: The meaning of fields in the data structures enumerated below may be not obvious from the context. In case
+of doubts, please refer to chapter 6, where the DEX model is explained.
 
 Transactions
 ------------

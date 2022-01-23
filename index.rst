@@ -7,6 +7,7 @@ Contents
 --------
 
 .. toctree::
+   :maxdepth: 2
 
    source/01-introduction.rst
    source/02-tech-stack.rst

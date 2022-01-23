@@ -10,12 +10,6 @@ pre-installed in the current version of Dexter.
 
 This chapter covers perspective (4) according to the list of perspectives explained in chapter 5.
 
-**Caution:** Our goal in this chapter is to explain the DEX model as it exists in the simulator, not the DEX model to be
-used in a production implementation of DEX (if any such implementation will happen to be created). In particular there
-are several simplifications in place caused by the fact, that we do not simulate the actual blockchain. Rather the
-blockchain functionality is mocked, and we only simulate some key characteristics of blockchain behaviour (like
-consensus delays for example).
-
 This UML diagram covers the whole model:
 
 .. image:: pictures/06/dex-uml-model.png
@@ -25,19 +19,39 @@ This UML diagram covers the whole model:
 Coins and tokens
 ----------------
 
-We use the term **coin** meaning "type of cryptocurrency". In our lingo, BTC and ETH are coins. On the other hand,
-we use the term **token** when we talk about amounts of coins transferred or wanted. In practice: when I sold 1.305
-bitcoins, we say that the the coin of that transaction was "bitcoin" and the number of tokens transferred was 1.305.
+We use the term **coin** meaning "type of cryptocurrency". For example, in our lingo, BTC and ETH are coins. On the
+other hand, we use the term **token** when we talk about amounts of coins. In practice: when I sell 1.305
+bitcoins, we say that the the coin of that transaction is "bitcoin" and the number of tokens transferred is 1.305.
 
 Coins are represented with ``Coin`` type, while token amounts are represented with ``FPNumber`` type.
 
 We frequently need to talk about pairs of coins. When ``AAA`` and ``BBB`` are some coins, we want to be able to form
 the pairs ``(AAA,BBB)`` and ``(BBB,AAA)``. This concept is represented with ``CoinPair`` type.
 
-We also sometimes need 2-element coin sets. This is different than coin pair, because a pair is ordered, while a set is
-not. However, to keep things simpler, we represent 2-element coin set as a **normalized coin pair**. This normalization
+We also sometimes need 2-element coin sets. This is different than a coin pair, because a pair is ordered, while a set is
+not. However, to keep things simpler, we represent a 2-element coin set as a **normalized coin pair**. This normalization
 works as follows: because every coin has an id (hash), we consider a CoinPair to be **normalized** if coins in this
 pair are ordered along their hashes.
+
+**Example**
+
+With number of coins configured to 7, at the beginning of the simulation the following information will show up in the
+console:
+
+|coins in use:
+|  code=AAA id=ee93-992a-dbdd-6168 description=Sample coin AAA
+|  code=BBB id=9853-0e3b-6c5e-fd60 description=Sample coin BBB
+|  code=CCC id=aea4-0d22-8e88-7e5b description=Sample coin CCC
+|  code=DDD id=ba32-7373-3682-7484 description=Sample coin DDD
+|  code=EEE id=e999-5a44-0ea6-4d46 description=Sample coin EEE
+|  code=FFF id=1531-f159-e87b-6776 description=Sample coin FFF
+|  code=GGG id=a8f4-8174-5e0a-3c25 description=Sample coin GGG
+
+These are automatically generated coins. For coins AAA and BBB, two coin pairs are possible: ``CoinPair(AAA,BBB)`` and
+``CoinPair(BBB,AAA)``. Now let us look at the hashes. A hash is printed using hex encoding of corresponding byte array
+and the comparison of hashes is lexicographic-per-byte. First byte of coin AAA identifier is ``ee`` in hex, which is
+number 238. First byte of coin BBB identifier is ``98`` in hex, which is number 152. Hence, BBB has smaller hash than
+AAA so we can conclude that ``CoinPair(BBB,AAA)`` is the normalized and ``CoinPair(AAA, BBB)`` is normalized.
 
 DEX core
 --------
