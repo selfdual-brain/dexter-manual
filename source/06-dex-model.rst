@@ -51,6 +51,9 @@ console:
      code=FFF id=1531-f159-e87b-6776 description=Sample coin FFF
      code=GGG id=a8f4-8174-5e0a-3c25 description=Sample coin GGG
 
+These are automatically generated coins. For coins AAA and BBB, two coin pairs are
+These are automatically generated coins. For coins AAA and BBB, two coin pairs are
+These are automatically generated coins. For coins AAA and BBB, two coin pairs are
 
    >>> coins in use:
      code=AAA id=ee93-992a-dbdd-6168 description=Sample coin AAA
@@ -61,22 +64,11 @@ console:
      code=FFF id=1531-f159-e87b-6776 description=Sample coin FFF
      code=GGG id=a8f4-8174-5e0a-3c25 description=Sample coin GGG
 
-sf s fs sd fsd fsdf
-
- |   coins in use:
- |     code=AAA id=ee93-992a-dbdd-6168 description=Sample coin AAA
- |     code=BBB id=9853-0e3b-6c5e-fd60 description=Sample coin BBB
- |     code=CCC id=aea4-0d22-8e88-7e5b description=Sample coin CCC
- |     code=DDD id=ba32-7373-3682-7484 description=Sample coin DDD
- |     code=EEE id=e999-5a44-0ea6-4d46 description=Sample coin EEE
- |     code=FFF id=1531-f159-e87b-6776 description=Sample coin FFF
- |     code=GGG id=a8f4-8174-5e0a-3c25 description=Sample coin GGG
-
 These are automatically generated coins. For coins AAA and BBB, two coin pairs are possible: ``CoinPair(AAA,BBB)`` and
 ``CoinPair(BBB,AAA)``. Now let us look at the hashes. A hash is printed using hex encoding of corresponding byte array
 and the comparison of hashes is lexicographic-per-byte. First byte of coin AAA identifier is ``ee`` in hex, which is
 number 238. First byte of coin BBB identifier is ``98`` in hex, which is number 152. Hence, BBB has smaller hash than
-AAA so we can conclude that ``CoinPair(BBB,AAA)`` is the normalized and ``CoinPair(AAA, BBB)`` is normalized.
+AAA so we can conclude that ``CoinPair(BBB,AAA)`` is normalized and ``CoinPair(AAA, BBB)`` is not normalized.
 
 DEX core
 --------
@@ -137,6 +129,8 @@ Markets
 
 DEX contains the collection of markets. For every normalized pair of coins we generate one market. This follows the
 tradition of Forex: a market AAA/BBB is where coin AAA can be traded for BBB and coin BBB can be traded for AAA.
+
+Hence, if we configure Dexter to simulate :math:`n` coins, :math:`\frac{n*(n-1)}{2}` markets will be generated.
 
 We also borrow from Forex another naming convention: base/quote. Base is the coin we think of as being the "asset" and
 quote is the coin we think of as being the "money". The selection of base is arbitrary - we just again use the
@@ -207,10 +201,11 @@ condition holds:
 
 Let:
 
-  - :math:`td` denote the total amount of liquidity tokens minted for the market
-  - :math:`d` denote the amount of liquidity tokens DEX will mint in effect of ``AddLiquidity``
+  - :math:`td` denote the total amount of liquidity tokens minted for the market under consideration
+  - :math:`d` denote the amount of liquidity tokens DEX will mint in effect of ``AddLiquidity`` and add to the total
+    balance of drops for the issuing trader account
 
-Then ``AddLiquidity`` follows this equation:
+Then ``AddLiquidity`` mints liquidity tokens so that the following equation is satisfied:
 
 .. math::
 
