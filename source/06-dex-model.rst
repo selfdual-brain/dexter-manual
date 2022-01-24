@@ -40,14 +40,14 @@ Coins collection is automatically generated on simulation start.
 With number of coins configured to 7, at the beginning of the simulation the following information will show up in the
 console:
 
-|coins in use:
-|  code=AAA id=ee93-992a-dbdd-6168 description=Sample coin AAA
-|  code=BBB id=9853-0e3b-6c5e-fd60 description=Sample coin BBB
-|  code=CCC id=aea4-0d22-8e88-7e5b description=Sample coin CCC
-|  code=DDD id=ba32-7373-3682-7484 description=Sample coin DDD
-|  code=EEE id=e999-5a44-0ea6-4d46 description=Sample coin EEE
-|  code=FFF id=1531-f159-e87b-6776 description=Sample coin FFF
-|  code=GGG id=a8f4-8174-5e0a-3c25 description=Sample coin GGG
+| coins in use:
+|   code=AAA id=ee93-992a-dbdd-6168 description=Sample coin AAA
+|   code=BBB id=9853-0e3b-6c5e-fd60 description=Sample coin BBB
+|   code=CCC id=aea4-0d22-8e88-7e5b description=Sample coin CCC
+|   code=DDD id=ba32-7373-3682-7484 description=Sample coin DDD
+|   code=EEE id=e999-5a44-0ea6-4d46 description=Sample coin EEE
+|   code=FFF id=1531-f159-e87b-6776 description=Sample coin FFF
+|   code=GGG id=a8f4-8174-5e0a-3c25 description=Sample coin GGG
 
 These are automatically generated coins. For coins AAA and BBB, two coin pairs are possible: ``CoinPair(AAA,BBB)`` and
 ``CoinPair(BBB,AAA)``. Now let us look at the hashes. A hash is printed using hex encoding of corresponding byte array
@@ -121,9 +121,9 @@ normalization of coin pairs here and in a normalized coin pair ``CoinPair(AAA,BB
 is base, while right-side coin (BBB in this example) is quote.
 
 Base-quote convention is basically a way to pick some orientation of the market (which is otherwise fully symmetric),
-hence talking about buyers, sellers and prices becomes unambiguous without further explanation of which coin we are selling.
-With base/quote setup in place, whoever is selling the base coin is the seller, and whoever is buying the base coin
-is the buyer. The price is then the amount of quote tokens to be paid for 1 base token.
+hence talking about buyers, sellers and prices becomes unambiguous without further explanation of which coin we are
+selling. With base/quote setup in place, whoever is selling the base coin is the seller, and whoever is buying the base
+coin is the buyer. The price is then the amount of quote tokens to be paid for 1 base token.
 
 A market maintains 4 ordered collections of orders:
 
@@ -162,11 +162,12 @@ Any trader can become a liquidity provider. Becoming a liquidity provider happen
      def initAMM(account: AccountAddress, aCoin: Coin, bCoin: Coin, aCoinAmount: FPNumber, bCoinAmount: FPNumber): Boolean
 
      //Add liquidity to an already initialized pool.
+     //Only one coin and its amount is provided as argument, the other side is automatically calculated
      def addLiquidity(accountAddress: AccountAddress, marketId: CoinPair, amountCoin: Coin, amount: FPNumber): Boolean
 
    }
 
-Drops collection is the way we track participation of traders in given liquidity pool. Participation tracking is based
+Drops collection is the way DEX tracks participation of traders in given liquidity pool. Participation tracking is based
 on a fictional coin (liquidity coin), and every drops is a collection keeping the balance of liquidity coin for every
 trader.
 
@@ -180,6 +181,18 @@ condition holds:
 .. math::
 
   \frac{ammBase}{ammQuote}=\frac{ammBase+x}{ammQuote+y}
+
+Let:
+
+  - :math:`td` denote the total amount of liquidity tokens minted for the market
+  - :math:`d` denote the amount of liquidity tokens DEX will mint in effect of ``AddLiquidity``
+
+Then ``AddLiquidity`` follows this equation:
+
+.. math::
+
+  \frac{x}{ammBase}=\frac{d}{td}
+
 
 Orders
 ------
