@@ -331,9 +331,14 @@ on command-line mode).
       [ ] 0.8461538461538461 btime=78 amount=0.0343644824759207 order-id=alfa-3 account=trader-0 [position 3a44-6244-b364-c85d]
       [ ] 0.7692307692307692 btime=83 amount=0.0426353434085135 order-id=bravo-5 account=trader-1 [position 185d-25ad-bd9f-4079]
 
+The market is presented in the normalized view. Order book is presented in a way similar to depth chart. Head of
+positions collections for ask (sellers) and bid (buyers) side are marked with red/green border. Purple color highlights
+one example of where limit price was the same for two positions and therefore the blockchain time decided which one is
+first to be executed: smaller btime value means older position (because this is blockchain time of adding the order).
 
-
-
+.. image:: pictures/06/order-book-dump-example.png
+    :width: 100%
+    :align: center
 
 .. _dex-operations-spec:
 
