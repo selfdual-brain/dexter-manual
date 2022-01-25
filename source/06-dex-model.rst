@@ -283,7 +283,7 @@ transient/mutable processing information about an order.
 Lifecycle of a position conforms to the following state machine:
 
 .. image:: pictures/06/order-state-machine.png
-    :width: 100%
+    :width: 70%
     :align: center
 
 
@@ -342,19 +342,18 @@ first to be executed: smaller btime value means older position (because this is 
 
 .. _dex-operations-spec:
 
-DEX operations
---------------
-
-TODO
-
-
 Execution of orders
 -------------------
 
-Caution: stop orders are considered experimental feature. In this chapter we describe limit order only.
+The following sequence diagram illustrates the general algorithm of processing new orders on a DEX. Several technical details
+(such as updating various statistics) are stripped.
 
+.. image:: pictures/06/add-order-processing-sequence.png
+    :width: 100%
+    :align: center
 
-
+**Executor loop** is the pluggable part of this algorithm. Current version of Dexter supports 3 executors (more can be added
+in the future). The next chapter is devoted to specify internals of all currently supported executors.
 
 
 
