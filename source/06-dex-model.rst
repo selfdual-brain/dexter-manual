@@ -83,9 +83,11 @@ Trader account is just the same as blockchain account. DEX becomes aware of a tr
 An account stores the following information:
 
  - current balance of tokens (per each coin)
- - current free balance of tokens (per each coin) - this is related to funds locking, see below
+ - current free balance of tokens (per each coin)
  - current balance of liquidity tokens (per market)
  - opened positions
+
+When a trader adds an order, the sell-coin amount gets locked so that it cannot be re-used in another order.
 
 Reserve
 -------
@@ -196,45 +198,156 @@ Then ``AddLiquidity`` mints liquidity tokens so that the following equation is s
 
 .. math::
 
-  \frac{x}{ammBase}=\frac{d}{td}
+  \frac{x}{ammBase} = \frac{y}{ammQuote} = \frac{d}{td}
 
+Caution: because of integer rounding, this equation usually cannot be satisfied exactly. DEX attempts to adhere
+to this equation as much as the fixed-point arithmetic allows to.
 
-Orders
-------
+Yield
+-----
 
-sfsd
+Any profit gained by running a DEX is shared among liquidity providers. Calculation of profits is done independently
+for every market.
 
-Funds locking/unlocking
------------------------
+A liquidity provider may withdraw part of whole of his investment into a liquidity pool by executing ``WithdrawLiquidity``
+transaction. This wil internally map to:
 
-fsdf
+.. code:: scala
 
-Market orientation
-------------------
+   class DexFacade {
 
-sdf
+     //Burns specified amount of liquidity coins owned by specified trader account.
+     //The trader will get proportional share of both coins of the liquidity pool.
+     def withdrawLiquidity(account: AccountAddress, marketId: CoinPair, amountOfLiquidityCoinsToBurn: FPNumber): Boolean
 
-Liquidity providers
--------------------
+   }
 
-fsfs
+By executing such operation, a trader pulls out part of his investment, but also capitalizes relevant profit (if any).
+The profit will show up as a difference between tokens invested via ``AddLiquidity`` and tokens received via
+``WithdrawLiquidity``.
+
+Orders and positions
+--------------------
+
+An order represents a willing to trade. An order is prepared by a DEX client and on DEX side is represented as an
+immutable structure:
+
+.. code:: scala
+
+  case class Order(
+      id: Hash,
+      orderType: OrderType,
+      accountAddress: AccountAddress,
+      askCoin: Coin,
+      bidCoin: Coin,
+      exchangeRate: Fraction,
+      amount: FPNumber,
+      expirationTimepoint: SimulationTime,
+      isShort: Boolean
+  )
+
+Fields explained:
+
+:id:                  hash code of an order
+:orderType:           ``OrderType.Limit`` or ``OrderType.Stop``
+:accountAddress:      trader id
+:askCoin:             coin which the trader wants to buy
+:bidCoin:             coin which the trader wants to sell
+:exchangeRate:        worst price the trader is going to accept for the execution of this order; if ``x`` tokens
+                      is sold and ``y`` tokens is bought, the price is calculated as ``y/x`` and the invariant is
+                      ``exchangeRate >= y/x``
+:amount:              amount of sell bid coin that the trader wants to sell
+:expirationTimepoint: timepoint when this order expires; we use real time here which is a quick-and-dirty hack,
+                      because there is no precise notion of real time on a blockchain
+:isShort:             a flag we use for simulation of pseudo-market-orders (see chapter 9)
+
+During ``addOrder`` operation ``DexCore`` wraps an order within a ``Position`` instance. Position contains
+transient/mutable processing information about an order.
+
+.. code:: scala
+
+  class Position(
+                     order: Order,
+                     market: Market,
+                     account: Account,
+                     blockchainTime: BlockchainTime, //blockchain time at the moment of adding the order
+                     realTime: SimulationTime
+                   ) extends Comparable[Position] {
+
+    private var amountSold: FPNumber = FPNumber.zero
+    private var amountBought: FPNumber = FPNumber.zero
+    val fillingReceipts = new ArrayBuffer[OrderFillingReceipt]
+    private var xStatus: OrderStatus = OrderStatus.Active
+  )
+
+Lifecycle of a position conforms to the following state machine:
+
+.. image:: pictures/06/order-state-machine.png
+    :width: 100%
+    :align: center
+
 
 Representation of an order book
 -------------------------------
-sfsd
+
+An order book is represented as a sorted sequence of positions. Sorting is based on compound key:
+``(order.exchangeRate, position.blockchainTime)``. In a normalized view of the market, the sorting is different
+for sellers and b
+
+**Example**
+
+This is a dump of a market state obtained by running Dexter in command-line mode (see chapter 15 for more details
+on command-line mode).
+
+.. code:: text
+
+  CCC/BBB amm-price: 0.9230769230769229 amm-balance: CCC=0.2033524523176000 BBB=0.1877099559854769
+    stats
+      active orders: 17
+      asks volume (limit orders only): 2.2252055597448764
+      bids volume (limit orders only): 0.4647315614247529
+      liquidity tokens: 100.0000000000000000
+      overhang [%]: 13.616701418130683
+      bid-ask spread: 0.0054945054945053
+    liquidity providers participation (aka 'drops')
+      trader-1 = 100.0000000000000000
+    order book - asks
+      [ ] 1.4000000000000000 btime=87 amount=0.0632067876538068 order-id=echo-3 account=trader-4 [position b924-ae7c-4626-21b4]
+      [ ] 1.2000000000000000 btime=99 amount=0.0723267765767228 order-id=delta-8 account=trader-3 [position 32f2-706f-61ca-0414]
+      [ ] 1.1666666666666666 btime=85 amount=0.1461096109263836 order-id=echo-2 account=trader-4 [position a170-3ddd-9ccf-804f]
+      [ ] 1.1666666666666666 btime=76 amount=0.1481821686792274 order-id=bravo-3 account=trader-1 [position 1779-302e-b904-a0dc]
+      [ ] 1.1000000000000000 btime=93 amount=0.1409292775669068 order-id=bravo-7 account=trader-1 [position 33eb-cd7a-9560-f506]
+      [ ] 1.1000000000000000 btime=66 amount=0.1547865094161745 order-id=bravo-1 account=trader-1 [position 0d90-3679-51d4-39cb]
+      [ ] 1.0909090909090909 btime=75 amount=0.2963613161202599 order-id=charlie-4 account=trader-2 [position 999d-5399-8768-c44c]
+      [ ] 1.0909090909090909 btime=69 amount=0.3836532994073379 order-id=charlie-2 account=trader-2 [position 2bea-9a05-a860-9c15]
+      [ ] 1.0769230769230769 btime=89 amount=0.0884213548369392 order-id=alfa-5 account=trader-0 [position a51c-c872-2df6-cf92]
+      [ ] 1.0000000000000000 btime=95 amount=0.3176973935997316 order-id=echo-4 account=trader-4 [position aff1-8c3d-c7c9-43f1]
+      [ ] 1.0000000000000000 btime=80 amount=0.3480376095309767 order-id=echo-1 account=trader-4 [position b42a-d222-4f5e-6e47]
+      [ ] 0.9285714285714285 btime=79 amount=0.0654934554304092 order-id=bravo-4 account=trader-1 [position 814f-2678-c436-f23b]
+    order book - bids
+      [H] 0.9230769230769231 btime=94 amount=0.1303907287138158 order-id=delta-6 account=trader-3 [position c754-6ffb-6915-2c4e]
+      [H] 0.9230769230769231 btime=98 amount=0.2077145384786107 order-id=delta-7 account=trader-3 [position bfe3-6925-d8ea-e22a]
+      [ ] 0.8571428571428571 btime=73 amount=0.0020677188597785 order-id=charlie-3 account=trader-2 [position 0625-293e-b527-5a02]
+      [ ] 0.8461538461538461 btime=78 amount=0.0343644824759207 order-id=alfa-3 account=trader-0 [position 3a44-6244-b364-c85d]
+      [ ] 0.7692307692307692 btime=83 amount=0.0426353434085135 order-id=bravo-5 account=trader-1 [position 185d-25ad-bd9f-4079]
 
 
-Data stored in a trader account
--------------------------------
-sfsd
+
+
 
 .. _dex-operations-spec:
 
 DEX operations
 --------------
 
+TODO
+
+
 Execution of orders
 -------------------
+
+Caution: stop orders are considered experimental feature. In this chapter we describe limit order only.
+
 
 
 
