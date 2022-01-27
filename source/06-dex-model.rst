@@ -280,12 +280,19 @@ transient/mutable processing information about an order.
     private var xStatus: OrderStatus = OrderStatus.Active
   )
 
-Lifecycle of a position conforms to the following state machine:
+Execution of an order is called **filling**. When ``AAA`` is the ask coin and ``BBB`` is the bid coin, we say that the
+direction of this order is ``BBB -> AAA``, i.e. the trader wants to sell some amount of ``BBB`` coin and buy some
+amount of ``AAA`` coin. This conversion may happen in one or more steps. Every such step is a **swap**.
+For a position ``P`` with direction ``BBB -> AAA``, the amount of tokens ``BBB`` sold so far is what we call
+``amountFilled``. In general, an order will become completely filled when ``amountFilled = amount``. However,
+it is the executor who runs the lifecycle of a position. Lifecycle of a position conforms to the following state machine:
 
 .. image:: pictures/06/order-state-machine.png
     :width: 70%
     :align: center
 
+As long as the position is **Active**, it is listed in the order book and is subject to further filling attempts.
+When a position leaves **Active** state, no more swaps for this position will be performed.
 
 Representation of an order book
 -------------------------------
