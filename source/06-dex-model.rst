@@ -16,6 +16,9 @@ This UML diagram covers the whole model:
     :width: 100%
     :align: center
 
+To illustrate the behaviour of DEX we use several examples written in Dexter scripting language. See chapter 15 for the
+details on the syntax, semantics and how to run these scripts in Dexter command-line mode.
+
 Coins and tokens
 ----------------
 
@@ -113,6 +116,39 @@ The following DexFacade operations deal with reserve:
 
    }.
 
+**Example**
+
+The following scripts initializes trader accounts for 3 traders.
+
+.. code:: text
+
+  trader 00: deposit  11.234 AAA
+  trader 01: deposit  5.01 AAA
+  trader 01: deposit  1.203 BBB
+  trader 02: deposit  0.099 CCC
+  trader 00: withdraw 0.1 AAA
+  trader 02: deposit  0.099 CCC
+
+After executing this script, the final state of the DEX will be:
+
+.. code:: text
+
+  -------------------------------- final state dump -----------------------------------------------
+  reserve
+    AAA: 983.8560000000000000
+    BBB: 998.7970000000000000
+    CCC: 999.8020000000000000
+  accounts
+    trader-0 (3c31-5dc9-534d-b125)
+      AAA: 11.1340000000000000 (free=11.1340000000000000 locked=0.0000000000000000)
+    trader-1 (4db5-f1f9-991e-59ef)
+      AAA: 5.0100000000000000 (free=5.0100000000000000 locked=0.0000000000000000)
+      BBB: 1.2030000000000000 (free=1.2030000000000000 locked=0.0000000000000000)
+    trader-2 (58c4-2c6d-2bc9-5dea)
+      CCC: 0.1980000000000000 (free=0.1980000000000000 locked=0.0000000000000000)
+  markets
+-------------------------------------- end ------------------------------------------------------
+
 Markets
 -------
 
@@ -156,9 +192,9 @@ Liquidity pool is the way we establish the concept of "current price" on the mar
 
 The way DEX is executing orders is fundamentally based on liquidity pools. Instead of matching sell and buy orders
 (as happens on Forex), the DEX executes trading against the liquidity pool attached to the relevant market. How exactly
-this execution works depends on a specific executor in use (see next chapter).
+this execution works depends on a specific executor in use (see the next chapter).
 
-Any trader can become a liquidity provider. Becoming a liquidity provider happens one of these operations:
+Any trader can become a liquidity provider. The following DexFacade operations deal with liquidity management:
 
 .. code:: scala
 
@@ -171,18 +207,21 @@ Any trader can become a liquidity provider. Becoming a liquidity provider happen
      //Only one coin and its amount is provided as argument, the other side is automatically calculated
      def addLiquidity(accountAddress: AccountAddress, marketId: CoinPair, amountCoin: Coin, amount: FPNumber): Boolean
 
+     //Burns specified amount of liquidity coins owned by specified trader account.
+     //The trader will get proportional share of both coins of the liquidity pool.
+     def withdrawLiquidity(account: AccountAddress, marketId: CoinPair, amountOfLiquidityCoinsToBurn: FPNumber): Boolean
    }
 
 Drops collection is the way DEX tracks participation of traders in given liquidity pool. Participation tracking is based
-on a fictional coin (liquidity coin), and every drops is a collection keeping the balance of liquidity coin for every
-trader.
+on a fictional "liquidity" coin (separate for every market), and drops is a collection keeping the balance of liquidity
+coin per trader.
 
 ``InitAMM`` just allocates fixed amount of liquidity coins (100.0) as drops entry for the issuing trader.
 
-``AddLiquidity`` ensures that the amounts of base and quote coin transferred from trader account will not change
-the current price. If :math:`ammBase` and :math:`ammQuote` are the initial balances of the AMM, and the trader adds
-liquidity by transferring :math:`x` tokens of base coin and `y` tokens of quote coin, the DEX ensures that the following
-condition holds:
+``AddLiquidity`` increases investment of issuing trader into AMM of selected market. The algorithm here ensures that
+the amounts of base and quote coin transferred from trader account will not change the current price. If
+and :math:`ammQuote` are the initial balances of the AMM, and the trader adds liquidity by transferring :math:`x` tokens
+of base coin and `y` tokens of quote coin, the DEX ensures that the following condition holds:
 
 .. math::
 
@@ -194,7 +233,7 @@ Let:
   - :math:`d` denote the amount of liquidity tokens DEX will mint in effect of ``AddLiquidity`` and add to the total
     balance of drops for the issuing trader account
 
-Then ``AddLiquidity`` mints liquidity tokens so that the following equation is satisfied:
+``AddLiquidity`` mints liquidity tokens so that the following equation is satisfied:
 
 .. math::
 
@@ -203,28 +242,23 @@ Then ``AddLiquidity`` mints liquidity tokens so that the following equation is s
 Caution: because of integer rounding, this equation usually cannot be satisfied exactly. DEX attempts to adhere
 to this equation as much as the fixed-point arithmetic allows to.
 
+``WithdrawLiquidity`` burns specified amount of liquidity tokens. Let :math:`ammBase` and :math:`ammQuote` denote
+current balance of the AMM for the relevant market. Let :math:`td` be the total number of liquidity tokens for this
+market. Let  :math:`d` be the amount of liquidity tokens that a trader wants to burn. This will end up executing
+the following token transfers from AMM to trader's account:
+
+ - base coin: :math:`\frac{d}{td}*ammBase`
+ - quote coin: :math:`\frac{d}{td}*ammQuote`
+
 Yield
 -----
 
-Any profit gained by running a DEX is shared among liquidity providers. Calculation of profits is done independently
-for every market.
+From the way liquidity pools work, it follows that any profit gained by running a DEX is shared among liquidity providers
+proportionally to their investments.
 
-A liquidity provider may withdraw part of whole of his investment into a liquidity pool by executing ``WithdrawLiquidity``
-transaction. This wil internally map to:
+That said, this profit may be actually negative due do the very nature of liquidity pools.
 
-.. code:: scala
 
-   class DexFacade {
-
-     //Burns specified amount of liquidity coins owned by specified trader account.
-     //The trader will get proportional share of both coins of the liquidity pool.
-     def withdrawLiquidity(account: AccountAddress, marketId: CoinPair, amountOfLiquidityCoinsToBurn: FPNumber): Boolean
-
-   }
-
-By executing such operation, a trader pulls out part of his investment, but also capitalizes relevant profit (if any).
-The profit will show up as a difference between tokens invested via ``AddLiquidity`` and tokens received via
-``WithdrawLiquidity``.
 
 Orders and positions
 --------------------
