@@ -129,6 +129,8 @@ The following scripts initializes trader accounts for 3 traders.
   trader 00: withdraw 0.1 AAA
   trader 02: deposit  0.099 CCC
 
+Caution: In this example (and all subsequent examples) we use per-coin initial reserve set to 1000.
+
 After executing this script, the final state of the DEX will be:
 
 .. code:: text
@@ -147,7 +149,7 @@ After executing this script, the final state of the DEX will be:
     trader-2 (58c4-2c6d-2bc9-5dea)
       CCC: 0.1980000000000000 (free=0.1980000000000000 locked=0.0000000000000000)
   markets
--------------------------------------- end ------------------------------------------------------
+  -------------------------------------- end ------------------------------------------------------
 
 Markets
 -------
@@ -249,6 +251,78 @@ the following token transfers from AMM to trader's account:
 
  - base coin: :math:`\frac{d}{td}*ammBase`
  - quote coin: :math:`\frac{d}{td}*ammQuote`
+
+**Example**
+
+In this example there are 3 traders, but 2 of them become liquidity providers.
+
+.. code:: text
+
+  trader 00: deposit  11.234 AAA
+  trader 00: deposit  5.01 BBB
+  trader 01: deposit  5.01 AAA
+  trader 01: deposit  7.901 BBB
+  trader 02: deposit  0.099 CCC
+  trader 00: amm-init AAA=1.2 BBB=3.1
+  trader 01: +amm AAA/BBB AAA=0.23
+  trader 01: deposit  3.3 CCC
+  trader 01: amm-init BBB=2 CCC=1.9
+
+After executing this script, the final state of the DEX will be:
+
+.. code:: text
+
+    -------------------------------- final state dump -----------------------------------------------
+    reserve
+      AAA: 983.7560000000000000
+      BBB: 987.0890000000000000
+      CCC: 996.6010000000000000
+    accounts
+      trader-0 (6520-118d-99d3-651f)
+        BBB: 1.9100000000000000 (free=1.9100000000000000 locked=0.0000000000000000)
+        AAA: 10.0340000000000000 (free=10.0340000000000000 locked=0.0000000000000000)
+      trader-1 (dd9d-dd30-e1fb-ebf6)
+        BBB: 5.3068333333333334 (free=5.3068333333333334 locked=0.0000000000000000)
+        AAA: 4.7800000000000000 (free=4.7800000000000000 locked=0.0000000000000000)
+        CCC: 1.4000000000000000 (free=1.4000000000000000 locked=0.0000000000000000)
+      trader-2 (aa15-a7ce-b653-fbb1)
+        CCC: 0.0990000000000000 (free=0.0990000000000000 locked=0.0000000000000000)
+    markets
+      BBB/AAA amm-price: 0.3870967741935483 amm-balance: BBB=3.6941666666666666 AAA=1.4300000000000000
+        stats
+          active orders: 0
+          asks volume (limit orders only): 0.0000000000000000
+          bids volume (limit orders only): 0.0000000000000000
+          liquidity tokens: 119.1666666666666666
+          overhang [%]: 0.0
+          bid-ask spread: 0.0000000000000000
+        liquidity providers participation (aka 'drops')
+          trader-1 = 19.1666666666666666
+          trader-0 = 100.0000000000000000
+        order book - asks
+          limits
+          stops
+        order book - bids
+          limits
+          stops
+      BBB/CCC amm-price: 0.9500000000000000 amm-balance: BBB=2.0000000000000000 CCC=1.9000000000000000
+        stats
+          active orders: 0
+          asks volume (limit orders only): 0.0000000000000000
+          bids volume (limit orders only): 0.0000000000000000
+          liquidity tokens: 100.0000000000000000
+          overhang [%]: 0.0
+          bid-ask spread: 0.0000000000000000
+        liquidity providers participation (aka 'drops')
+          trader-1 = 100.0000000000000000
+        order book - asks
+          limits
+          stops
+        order book - bids
+          limits
+          stops
+    -------------------------------------- end ------------------------------------------------------
+
 
 Yield
 -----
