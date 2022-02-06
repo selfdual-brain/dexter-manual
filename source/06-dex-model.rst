@@ -135,21 +135,21 @@ After executing this script, the final state of the DEX will be:
 
 .. code:: text
 
-  -------------------------------- final state dump -----------------------------------------------
-  reserve
-    AAA: 983.8560000000000000
-    BBB: 998.7970000000000000
-    CCC: 999.8020000000000000
-  accounts
-    trader-0 (3c31-5dc9-534d-b125)
-      AAA: 11.1340000000000000 (free=11.1340000000000000 locked=0.0000000000000000)
-    trader-1 (4db5-f1f9-991e-59ef)
-      AAA: 5.0100000000000000 (free=5.0100000000000000 locked=0.0000000000000000)
-      BBB: 1.2030000000000000 (free=1.2030000000000000 locked=0.0000000000000000)
-    trader-2 (58c4-2c6d-2bc9-5dea)
-      CCC: 0.1980000000000000 (free=0.1980000000000000 locked=0.0000000000000000)
-  markets
-  -------------------------------------- end ------------------------------------------------------
+    -------------------------------- final state dump -----------------------------------------------
+    per-coin stats
+      AAA: reserve=983.8560000000000000 deposits=16.1440000000000000 in-pools=0.0000000000000000 yield=0.0000000000000000 turnover=0.0000000000000000 fee=0.0000000000000000
+      BBB: reserve=998.7970000000000000 deposits=1.2030000000000000 in-pools=0.0000000000000000 yield=0.0000000000000000 turnover=0.0000000000000000 fee=0.0000000000000000
+      CCC: reserve=999.8020000000000000 deposits=0.1980000000000000 in-pools=0.0000000000000000 yield=0.0000000000000000 turnover=0.0000000000000000 fee=0.0000000000000000
+    accounts
+      trader-0 (f03e-152a-9bcc-84a5)
+        AAA: 11.1340000000000000 (free=11.1340000000000000 locked=0.0000000000000000)
+      trader-1 (964c-867b-98d2-f9a5)
+        BBB: 1.2030000000000000 (free=1.2030000000000000 locked=0.0000000000000000)
+        AAA: 5.0100000000000000 (free=5.0100000000000000 locked=0.0000000000000000)
+      trader-2 (7daa-7a83-0bc9-b98c)
+        CCC: 0.1980000000000000 (free=0.1980000000000000 locked=0.0000000000000000)
+    markets
+    -------------------------------------- end ------------------------------------------------------
 
 Markets
 -------
@@ -273,10 +273,10 @@ After executing this script, the final state of the DEX will be:
 .. code:: text
 
     -------------------------------- final state dump -----------------------------------------------
-    reserve
-      AAA: 983.7560000000000000
-      BBB: 987.0890000000000000
-      CCC: 996.6010000000000000
+    per-coin stats
+      AAA: reserve=983.7560000000000000 deposits=16.2440000000000000 in-pools=1.4300000000000000 yield=0.0000000000000000 turnover=0.0000000000000000 fee=0.0000000000000000
+      BBB: reserve=987.0890000000000000 deposits=12.9110000000000000 in-pools=5.6941666666666666 yield=0.0000000000000000 turnover=0.0000000000000000 fee=0.0000000000000000
+      CCC: reserve=996.6010000000000000 deposits=3.3990000000000000 in-pools=1.9000000000000000 yield=0.0000000000000000 turnover=0.0000000000000000 fee=0.0000000000000000
     accounts
       trader-0 (6520-118d-99d3-651f)
         BBB: 1.9100000000000000 (free=1.9100000000000000 locked=0.0000000000000000)
@@ -323,15 +323,51 @@ After executing this script, the final state of the DEX will be:
           stops
     -------------------------------------- end ------------------------------------------------------
 
-
 Yield
 -----
 
-From the way liquidity pools work, it follows that any profit gained by running a DEX is shared among liquidity providers
-proportionally to their investments.
+By **yield** we mean the profit made by a liquidity provider - as seen at some specified state of DEX. We formalize yield
+as a value calculated separately for every <coin, market,trader> combination:
 
-That said, this profit may be actually negative due do the very nature of liquidity pools.
+Let:
 
+  - :math:`A` and :math:`B` be fixed coins
+  - :math:`t` be fixed trader account
+  - :math:`prov` be the sum of :math:`A` tokens added to the liquidity pool on the market :math:`<A,B>` by trader
+    :math:`t` via **add-liquidity** operations (in the whole lifetime of DEX, up to the currently considered state)
+  - :math:`liq` be the sum of :math:`A` tokens withdrawn from the liquidity pool on the market :math:`<A,B>` by trader
+    :math:`t` via **remove-liquidity** operations (in the whole lifetime of DEX, up to the currently considered state)
+  - :math:`a` and :math:`b` be balances of respectively :math:`A` and :math:`B` on the market :math:`<A,B>`
+  - :math:`d` be the amount of liquidity tokens owned by trader :math:`t` on the market :math:`<A,B>`
+  - :math:`td` be the total amount of liquidity tokens on the market :math:`<A,B>`
+
+If at this moment trader :math:`t` decided to capitalize its share of the liquidity pool, it would be:
+
+ - this amount of coin :math:`A`: :math:`\frac{d}{td}*a`
+ - this amount of coin :math:`B`: :math:`\frac{d}{td}*b`
+
+Let us focus on the overall coin :math:`A` balance as seen by the trader :math:`t` from the perspective of calculating
+the profit/loss:
+
+  - so far I invested :math:`prov` tokens into the pool
+  - so far I withdrew :math:`liq` tokens from the pool
+  - as of now :math:`\frac{d}{td}*a` tokens in the pool belongs to me
+
+We define **yield** (per trader-market-coin combination) as: :math:`owned + withdrew - invested`, i.e:
+
+.. math::
+
+  yield = \frac{d}{td}*a + liq - prov
+
+Yield can be summed over all markets, leading to the "yield per trader-coin combination", which has the form of
+a function:
+
+.. math::
+
+  yield: T \times C \rightarrow \mathcal{FP}
+
+... where :math:`T` is the set of all trader accounts, :math:`C` is the set of all coins and \mathcal{FP} are
+fixed-point numbers.
 
 
 Orders and positions
