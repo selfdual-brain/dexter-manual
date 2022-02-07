@@ -357,18 +357,27 @@ We define **yield** (per trader-market-coin combination) as: :math:`owned + with
 
 .. math::
 
-  yield = \frac{d}{td}*a + liq - prov
+  yield_{tmc} = \frac{d}{td}*a + liq - prov
 
 Yield can be summed over all markets, leading to the "yield per trader-coin combination", which has the form of
 a function:
 
 .. math::
 
-  yield: T \times C \rightarrow \mathcal{FP}
+  yield_{tc}: T \times C \rightarrow \mathcal{FP}
 
-... where :math:`T` is the set of all trader accounts, :math:`C` is the set of all coins and \mathcal{FP} are
+... where :math:`T` is the set of all trader accounts, :math:`C` is the set of all coins and :math:`\mathcal{FP}` are
 fixed-point numbers.
 
+Yield can be further summed over all traders, leading the "yield per coin" function:
+
+.. math::
+
+  yield_c: C \rightarrow \mathcal{FP}
+
+This is exactly the yield listed in the **per-coin-stats** section (see the final state dump in examples).
+
+Caution: please notice that yield can be negative.
 
 Orders and positions
 --------------------
@@ -437,6 +446,131 @@ it is the executor who runs the lifecycle of a position. Lifecycle of a position
 
 As long as the position is **Active**, it is listed in the order book and is subject to further filling attempts.
 When a position leaves **Active** state, no more swaps for this position will be performed.
+
+**Example**
+
+Caution: in command-line mode **expirationTimepoint** is mocked and **isShort** is always set to false.
+
+
+In the following script there are 3 traders, and two orders are placed on the exchange - one LIMIT order in ``AAA/BBB``
+market and one STOP order in ``AAA/CCC`` market.
+
+.. code:: text
+
+    trader 01: deposit  11.120 AAA
+    trader 01: deposit  8.001 BBB
+    trader 01: deposit  20.005 CCC
+    trader 01: amm-init AAA=4.01 BBB=4.23
+    trader 01: amm-init AAA=3.5 CCC=9.12
+    trader 02: deposit  5.0 AAA
+    trader 02: deposit  5.0 BBB
+    trader 02: deposit  10.0 CCC
+    trader 02: +amm     AAA/CCC AAA=2.2
+    trader 01: open     #a01 AAA->BBB limit 1.0 [0.9]
+    trader 02: open     #a02 AAA->CCC stop  1.52 [000.010]
+    trader 01: close    #a01
+    trader 01: +amm     AAA/BBB AAA=1.112
+    trader 02: -amm     AAA/CCC 0.5
+
+When executed with TEAL executor (see next chapter for the overview of supported executors), the execution log of this
+script looks like this:
+
+.. code:: text
+
+    ---------------------------------- execution log ------------------------------------------------
+    line 00001|trader 001: deposit  11.1200000000000000 AAA
+      introduced trader 1: auto-generated account address=578d-8c40-a64f-6dec
+      [btime 0] deposit: accountAddress=578d-8c40-a64f-6dec amount=11.1200000000000000 AAA
+    line 00002|trader 001: deposit  8.0010000000000000 BBB
+      [btime 1] deposit: accountAddress=578d-8c40-a64f-6dec amount=8.0010000000000000 BBB
+    line 00003|trader 001: deposit  20.0050000000000000 CCC
+      [btime 2] deposit: accountAddress=578d-8c40-a64f-6dec amount=20.0050000000000000 CCC
+    line 00004|trader 001: amm-init AAA=4.0100000000000000 BBB=4.2300000000000000
+      [btime 3] provision: accountAddress=578d-8c40-a64f-6dec aAmount=4.0100000000000000 AAA bAmount=4.2300000000000000 BBB drop=100.0000000000000000
+    line 00005|trader 001: amm-init AAA=3.5000000000000000 CCC=9.1200000000000000
+      [btime 4] provision: accountAddress=578d-8c40-a64f-6dec aAmount=3.5000000000000000 AAA bAmount=9.1200000000000000 CCC drop=100.0000000000000000
+    line 00006|trader 002: deposit  5.0000000000000000 AAA
+      introduced trader 2: auto-generated account address=bb8b-4f43-cd02-af10
+      [btime 5] deposit: accountAddress=bb8b-4f43-cd02-af10 amount=5.0000000000000000 AAA
+    line 00007|trader 002: deposit  5.0000000000000000 BBB
+      [btime 6] deposit: accountAddress=bb8b-4f43-cd02-af10 amount=5.0000000000000000 BBB
+    line 00008|trader 002: deposit  10.0000000000000000 CCC
+      [btime 7] deposit: accountAddress=bb8b-4f43-cd02-af10 amount=10.0000000000000000 CCC
+    line 00009|trader 002: +amm     AAA/CCC AAA=2.2000000000000000
+      [btime 8] provision: accountAddress=bb8b-4f43-cd02-af10 aAmount=2.2000000000000000 AAA bAmount=5.7325714285714285 CCC drop=62.8571428571428571
+    line 00010|trader 001: open     #a01 AAA->BBB limit 1.0000000000000000 [0.9000000000000000]
+      [btime 9] [rtime 2.0] open order: id=5bf7-082e-6fce-6801 type=Limit account=578d-8c40-a64f-6dec askCoin=BBB bidCoin=AAA price=9/10 amount=1.0000000000000000 exptime=259201.0
+      [btime 9] [rtime 4.0] created new position for order 5bf7-082e-6fce-6801 normalized-amount=1.0000000000000000
+      limit-execute: askCoin=BBB bidCoin=AAA
+      limit-execute decision: partial filling of Position(Order(5bf7-082e-6fce-6801,Limit,578d-8c40-a64f-6dec,BBB,AAA,9/10,1.0000000000000000,259201.0,false),Market[AAA/BBB],Account-578d-8c40-a64f-6dec,9,3.0)
+      old-normalized-amount=1.0000000000000000 new-normalized-amount=0.6731578947368422 delta=0.3268421052631578
+      partial-filling [position 5bf7-082e-6fce-6801] (0.3268421052631578 AAA) ~~~~> (0.2941578947368420 BBB)
+    line 00011|trader 002: open     #a02 AAA->CCC stop 1.5200000000000000 [0.0100000000000000]
+      [btime 10] [rtime 8.0] open order: id=51d9-58c4-4514-157a type=Stop account=bb8b-4f43-cd02-af10 askCoin=AAA bidCoin=CCC price=1/100 amount=1.5200000000000000 exptime=259207.0
+      [btime 10] [rtime 10.0] created new position for order 51d9-58c4-4514-157a normalized-amount=0.0152000000000000
+      stop-execute: askCoin=AAA bidCoin=CCC
+    line 00012|trader 001: close    #a01
+      [btime 11] close: askCoin=BBB bidCoin=AAA position=5bf7-082e-6fce-6801
+    line 00013|trader 001: +amm     AAA/BBB AAA=1.1120000000000000
+      [btime 12] provision: accountAddress=578d-8c40-a64f-6dec aAmount=1.1120000000000000 AAA bAmount=1.0091804854368932 BBB drop=25.6407766990291267
+    line 00014|trader 002: -amm     AAA/CCC 0.5000000000000000
+      [btime 13] liquidate: accountAddress=bb8b-4f43-cd02-af10 aAmount=0.0175000000000000 AAA bAmount=0.0455999999999999 CCC drop=0.5000000000000000
+
+After execution, the final state of the DEX will be:
+
+.. code:: text
+
+    -------------------------------- final state dump -----------------------------------------------
+    per-coin stats
+      AAA: reserve=983.8800000000000000 deposits=16.1200000000000000 in-pools=11.1313421052631578 yield=0.3268421052631578 turnover=0.3268421052631578 fee=100.0000000000000000
+      BBB: reserve=986.9990000000000000 deposits=13.0010000000000000 in-pools=4.9450225907000512 yield=-0.2941578947368420 turnover=0.2941578947368420 fee=-100.0000000000000000
+      CCC: reserve=969.9950000000000000 deposits=30.0050000000000000 in-pools=14.8069714285714286 yield=0.0000000000000000 turnover=0.0000000000000000 fee=0.0000000000000000
+    accounts
+      trader-1 (578d-8c40-a64f-6dec)
+        AAA: 2.1711578947368422 (free=2.1711578947368422 locked=0.0000000000000000)
+        CCC: 10.8850000000000000 (free=10.8850000000000000 locked=0.0000000000000000)
+        BBB: 3.0559774092999488 (free=3.0559774092999488 locked=0.0000000000000000)
+      trader-2 (bb8b-4f43-cd02-af10)
+        AAA: 2.8175000000000000 (free=2.8175000000000000 locked=0.0000000000000000)
+        CCC: 4.3130285714285714 (free=2.7930285714285714 locked=1.5200000000000000)
+        BBB: 5.0000000000000000 (free=5.0000000000000000 locked=0.0000000000000000)
+        [>] a02 [btime 10 position 51d9-58c4-4514-157a] CCC->AAA Stop initial-amount 1.5200000000000000 limit-price 0.0100000000000000 outstanding-amount 1.5200000000000000 bought/sold 0.0 sold/bought 0.0
+    markets
+      AAA/BBB amm-price: 0.9075364077669903 amm-balance: AAA=5.4488421052631578 BBB=4.9450225907000512
+        stats
+          active orders: 0
+          asks volume (limit orders only): 0.0000000000000000
+          bids volume (limit orders only): 0.0000000000000000
+          liquidity tokens: 125.6407766990291267
+          overhang [%]: 0.0
+          bid-ask spread: 0.0000000000000000
+        liquidity providers participation (aka 'drops')
+          trader-1 = 125.6407766990291267
+        order book - asks
+          limits
+          stops
+        order book - bids
+          limits
+          stops
+      AAA/CCC amm-price: 2.6057142857142857 amm-balance: AAA=5.6825000000000000 CCC=14.8069714285714286
+        stats
+          active orders: 1
+          asks volume (limit orders only): 0.0000000000000000
+          bids volume (limit orders only): 0.0000000000000000
+          liquidity tokens: 162.3571428571428571
+          overhang [%]: 0.0
+          bid-ask spread: 0.0000000000000000
+        liquidity providers participation (aka 'drops')
+          trader-2 = 62.3571428571428571
+          trader-1 = 100.0000000000000000
+        order book - asks
+          limits
+          stops
+        order book - bids
+          limits
+          stops
+            [ ] 100.0000000000000000 btime=10 amount=1.5200000000000000 order-id=a02 account=trader-2 [position 51d9-58c4-4514-157a]
+    -------------------------------------- end ------------------------------------------------------
 
 Representation of an order book
 -------------------------------

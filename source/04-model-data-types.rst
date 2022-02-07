@@ -40,6 +40,9 @@ transactions execution, namely the following invariant holds:
 
   if transaction :math:`t_1` can see transaction :math:`t_2` in its past, then :math:`bTime(t_1)>bTime(t_2)`
 
+Caution: when running Dexter in command-line mode (see chapter 15), there is no proper simulation of time in place,
+hence the simulation clock is mocked. Therefore time-related statistics are meaningless in command-line.
+
 Hash
 ----
 
