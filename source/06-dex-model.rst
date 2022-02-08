@@ -382,7 +382,7 @@ Caution: please notice that yield can be negative.
 Orders and positions
 --------------------
 
-An order represents a willing to trade. An order is prepared by a DEX client and on DEX side is represented as an
+An order represents a willing to trade. An order is prepared by a DEX client and is represented as an
 immutable structure:
 
 .. code:: scala
@@ -435,10 +435,10 @@ transient/mutable processing information about an order.
 
 Execution of an order is called **filling**. When ``AAA`` is the ask coin and ``BBB`` is the bid coin, we say that the
 direction of this order is ``BBB -> AAA``, i.e. the trader wants to sell some amount of ``BBB`` coin and buy some
-amount of ``AAA`` coin. This conversion may happen in one or more steps. Every such step is a **swap**.
+amount of ``AAA`` coin. This conversion may happen in one or more steps. Every such step is called a **swap**.
 For a position ``P`` with direction ``BBB -> AAA``, the amount of tokens ``BBB`` sold so far is what we call
-``amountFilled``. In general, an order will become completely filled when ``amountFilled = amount``. However,
-it is the executor who runs the lifecycle of a position. Lifecycle of a position conforms to the following state machine:
+``amountFilled``. In general, an order will become completely filled when ``amountFilled = amount``.
+It is the executor who runs the lifecycle of a position. Lifecycle of a position conforms to the following state machine:
 
 .. image:: pictures/06/order-state-machine.png
     :width: 70%
@@ -616,10 +616,11 @@ on command-line mode).
       [ ] 0.8461538461538461 btime=78 amount=0.0343644824759207 order-id=alfa-3 account=trader-0 [position 3a44-6244-b364-c85d]
       [ ] 0.7692307692307692 btime=83 amount=0.0426353434085135 order-id=bravo-5 account=trader-1 [position 185d-25ad-bd9f-4079]
 
-The market is presented in the normalized view. Order book is presented in a way similar to depth chart. Head of
-positions collections for ask (sellers) and bid (buyers) side are marked with red/green border. Purple color highlights
-one example of where limit price was the same for two positions and therefore the blockchain time decided which one is
-first to be executed: smaller btime value means older position (because this is blockchain time of adding the order).
+The market is presented in the normalized view. Order book is presented in a way similar to depth chart. Ordering of
+positions sequence corresponds to execution priority.Head of positions sequence for ask (sellers) is marked with red
+border. Head of positions sequence for bid (buyers) is marked with green border.Purple border highlights a situation
+where the limit price was the same for two positions and therefore the blockchain time decided about the priority.
+Smaller btime value means older position (because this is the blockchain time at registering that order).
 
 .. image:: pictures/06/order-book-dump-example.png
     :width: 100%
