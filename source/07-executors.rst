@@ -37,11 +37,23 @@ Notation
 This chapter is the only mathematically-involved part of Dexter documentation. We assume set theory (ZCF)
 and basic mathematical notation (first-order logic). On top of this we borrow from TLA+ the syntax for records, i.e.:
 
- - :math:`[a -> 1, b -> true, c -> "snake"]` - this is a sample record
+ - :math:`[a \mapsto 1, b \mapsto true, c \mapsto "snake"]` - this is a sample record
  - :math:`[a: String, b: Boolean, c: String]` - this is a set of records with given structure
+ - :math:`e.h` - the :math:`h` field of record :math:`e`
+
+We also borrow TLA+ syntax for function spaces and we write :math:`[S \rightarrow T]` instead of more traditional
+:math:`T^S`.
 
 We make a distinction between mathematical sets of numbers like :math:`\mathbb{N}`, :math:`\mathbb{R}` vs
 implementation-level types like ``Int``, ``Double``.
+
+Additionally:
+
+ - :math:`P(A)` is the powerset of :math:A`
+ - :math:`\mathbb{R}_+` is the set of positive real numbers
+ - :math:`Time` is just alias for `\mathbb{R}_+ \cup \{ 0 \}`
+ - :math:`Amount` is just alias for `\mathbb{R}_+ \cup \{ 0 \}`
+ - :math:`Price` is just alias for `\mathbb{R}_+ \cup \{ 0 \}`
 
 Arithmetic precision
 --------------------
@@ -59,10 +71,14 @@ Mathematical framing
 
 We start with the following definitions:
 
- - :math:`Coins` - the (finite) set of coins
- - :math:`Orders = []`
- - 
-
+ - :math:`Coin` - the set of coins
+ - :math:`CoinPair` - 2-element sets of coins: :math:`\{p \in P(Coin): a \neq b \}`
+ - :math:`Direction` - ordered pairs of different coins: :math:`\{ <a,b> \in Coin \times Coin: a \neq b \}`
+ - :math:`Account` - the set of accounts
+ - :math:`LimitOrder = [account: Account, direction: Direction, price: Price, amount: Amount, expTime: Time]`
+ - :math:`Position = [order: LimitOrder, soldSoFar: Amount]`
+ - :math:`MarketState = {m \in P(Position): \forall{x,y \in m} x.order \neq y.order}`
+ - :math:`DexState = \{f \in [CoinPair \rightarrow MarketState]: \forall{p \in CoinPair} f(p)\}`
 
 ----
 
