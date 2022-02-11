@@ -41,6 +41,20 @@ and basic mathematical notation (first-order logic). On top of this we borrow fr
  - :math:`[a: String, b: Boolean, c: String]` - this is a set of records with given structure
  - :math:`e.h` - the :math:`h` field of record :math:`e`
 
+We explicitly mark introduction of new symbols by adding keyword :math:`let` at the beginning:
+
+:math:`let a = 2`
+
+In such case equality sign is just the market of where the definition begins.
+
+We use :math:`where` keyword as a syntax sugar for subset selection in definitions. This:
+
+:math:`let A = SomePossiblyLongSetDefinition where \forall{x in SomeSet} SomeCondition(x)`
+
+is supposed to mean:
+
+:math:`let A = \{x \in SomePossiblyLongSetDefinition: SomeCondition(x)\}`
+
 We also borrow TLA+ syntax for function spaces and we write :math:`[S \rightarrow T]` instead of more traditional
 :math:`T^S`.
 
@@ -49,11 +63,11 @@ implementation-level types like ``Int``, ``Double``.
 
 Additionally:
 
- - :math:`P(A)` is the powerset of :math:A`
+ - :math:`P(A)` is the powerset of :math:`A`
  - :math:`\mathbb{R}_+` is the set of positive real numbers
- - :math:`Time` is just alias for `\mathbb{R}_+ \cup \{ 0 \}`
- - :math:`Amount` is just alias for `\mathbb{R}_+ \cup \{ 0 \}`
- - :math:`Price` is just alias for `\mathbb{R}_+ \cup \{ 0 \}`
+ - :math:`Time` is just alias for :math:`\mathbb{R}_+ \cup \{ 0 \}`
+ - :math:`Amount` is just alias for :math:`\mathbb{R}_+ \cup \{ 0 \}`
+ - :math:`Price` is just alias for :math:`\mathbb{R}_+ \cup \{ 0 \}`
 
 Arithmetic precision
 --------------------
@@ -61,24 +75,134 @@ Arithmetic precision
 In Dexter implementation we use ``FPNumber`` type for fixed-point numbers and ``Fraction`` for unlimited-precision
 quotient numbers. ``FPNumber`` is mostly used for amounts of tokens, while ``Fraction`` is mostly used for prices.
 
-From the point of view of mathematical derivations of executor algorithms, fixed point arithmetic introduces an extra
-layer of complication. To keep the derivations easier, we introduce algorithms using unlimited precision of mathematical
-real numbers. Then in the last sub-chapter we describe additional complications needed because of the implemented
-arithmetic.
+We specify executors using real numbers, so withing the idealized formal arithmetic provided by pure math. Fixed-point
+arithmetic adds an extra layer of complexity that could obscure the mathematical clarity of ideas, so we describe
+this layer separately.
 
 Mathematical framing
 --------------------
 
-We start with the following definitions:
+For specifying executors, we re-establish here the DEX model again - but this time using mathematical formalism. Because
+all we need is to specify execution of orders, we ignore reserve operations (deposit/withdraw) and liquidity management
+(add-liquidity/withdraw-liquidity). We also get rid of identifiers and hashes (mathematical identity does the job).
 
- - :math:`Coin` - the set of coins
- - :math:`CoinPair` - 2-element sets of coins: :math:`\{p \in P(Coin): a \neq b \}`
- - :math:`Direction` - ordered pairs of different coins: :math:`\{ <a,b> \in Coin \times Coin: a \neq b \}`
- - :math:`Account` - the set of accounts
- - :math:`LimitOrder = [account: Account, direction: Direction, price: Price, amount: Amount, expTime: Time]`
- - :math:`Position = [order: LimitOrder, soldSoFar: Amount]`
- - :math:`MarketState = {m \in P(Position): \forall{x,y \in m} x.order \neq y.order}`
- - :math:`DexState = \{f \in [CoinPair \rightarrow MarketState]: \forall{p \in CoinPair} f(p)\}`
+To bootstrap things we need the following definitions:
+
+Coins
+^^^^^
+
+We assume :math:`Coin` is some given fixed set of coins. This is just an arbitrary non-empty finite set.
+
+Caution: Please note the naming convention here is borrowed from programming, where the singular form of nouns is used
+as a type name. We consider sets in ZFC as something conceptually corresponding to types in programming.
+
+Accounts
+^^^^^^^^
+
+We assume :math:`Account` is some given set of trader accounts. This is just an arbitrary non-empty set and we need it to
+represent the identity of traders.
+
+We also need a trader state, which simply tracks the trader's balance for every coin:
+
+:math:`let AccountState = [Coin \rightarrow Amount]`
+
+Coin pairs
+^^^^^^^^^^
+
+Similarly to the implementation layer, we need both ordered and unordered pairs of coins. Unordered pairs play the role
+of market identifiers, while ordered pairs are needed to identify trading direction.
+
+Unordered pairs can be just represented as 2-element sets of coins:
+
+:math:`let CoinPair = \{p \in P(Coin): a \neq b \}`
+
+Ordered pairs can be found as a subset of the cartesian product:
+
+:math:`let Direction = \{ <a,b> \in Coin \times Coin: a \neq b \}`
+
+Every direction can be converted to coin pair with the following function:
+
+:math:`let function toPair: Direction \rightarrow CoinPair is:`
+
+:math:`toPair(<a,b>) = {a,b}`
+
+Limit orders and Positions
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+We materialize orders as records.
+
+:math:`let LimitOrder = [account: Account, direction: Direction, price: Price, amount: Amount, expTime: Time]`
+
+For positions, we really only need to track the amount of tokens sold. Please notice that contrary to the implementation
+model, we are inside of pure math here so everything is immutable by nature:
+
+:math:`let Position = [order: LimitOrder, creationTime: BTime, soldSoFar: Amount]`
+
+DEX state
+^^^^^^^^^
+
+Market state is composed of market id, AMM balance and a collection of positions, plus we need to make sure that
+positions are coherent with market id
+
+.. math::
+
+  let MarketState = [marketId: CoinPair, ammBalance: [marketId \rightarrow Amount], positions: P(Position)]
+  where \forall{s \in MarketState} \forall{p \in s.positions} toPair(p.order.direction) = s.marketId
+
+Then the whole DEX state is composed of account states and markets:
+
+.. math::
+
+  let DexState = [accounts: [Account \rightarrow AccountState], markets: CoinPair \rightarrow MarketState]
+  where \forall{s \in DexState} \forall{p \in CoinPair} s.markets(p).marketId = p
+
+Executors
+^^^^^^^^^
+
+At the most general level an executor is a machinery to transform DEX states on new order arrival:
+
+:math:`let Executor = [MarketState \times Order \rightarrow MarketState]`
+
+However in the current version of Dexter we limit our attention to a narrow sub-family of executors that can be
+defined via swaps. A **swap** is an "atomic" conversion of tokens done via AMM on behalf of a specified order:
+
+:math:`let Swap = [order: Order, amountSold: Amount, amountBought: Amount]`
+
+We think of a swap as a trade done against the liquidity pool, so only one trader is involved. This is in contrary to
+Forex-style exchanges, where an atomic trading action involves always 2 traders.
+
+Swaps
+^^^^^
+
+Swaps are atomic executions. A single swap represents one portion of tokens converted
+
+
+
+:math:`Swap = []`
+
+Executor
+^^^^^^^^
+
+Now we are reade to express the concept of an executor. this is just any recipe for evolving DEX state after a new order
+arrived:
+
+:math:`Executor = \{ex \in [MarketState \times Order \rightarrow MarketState]\}`
+
+Fair-play conditions
+^^^^^^^^^^^^^^^^^^^^
+
+As an example of th formal setup, we will formalize the fair-play conditions introduced in the beginning of this chapter.
+
+Let :math:`ex \ Executor` be the executor in question.
+
+**Rule #1**
+
+.. math::
+
+  \forall{p \in Perm(Account)}{}
+
+
+
 
 ----
 
@@ -135,20 +259,19 @@ TURQUOISE executor does not support stop orders, hence the market state is compo
  - two liquidity pool balances (one balance for each coin)
 
 Basic idea of the algorithm
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 
 
 
 Mathematics
-~~~~~~~~~~~
+^^^^^^^^^^^
 
 We will now derive the mathematical formulas to
 
 The main idea of the algorithm is to execute every swap using the limit price declared in the order. This in contrary
 to a FOREX-style exchanges, where every swap is executed using the current market price. While executing swaps this way,
 the limiting factor is the "real" price, which we establish as :math:`\frac{a}{b}`, where :math:`A` and :math:`B`
-
 
 
 
