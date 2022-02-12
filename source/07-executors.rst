@@ -93,7 +93,8 @@ Coins
 We assume :math:`Coin` is some given fixed set of coins. This is just an arbitrary non-empty finite set.
 
 Caution: Please note the naming convention here is borrowed from programming, where the singular form of nouns is used
-as a type name. We consider sets in ZFC as something conceptually corresponding to types in programming.
+as a type name. The motivation behind this convention is that sets in ZFC can be sometimes seen as conceptually
+corresponding to types in programming.
 
 Accounts
 ^^^^^^^^
@@ -113,29 +114,38 @@ of market identifiers, while ordered pairs are needed to identify trading direct
 
 Unordered pairs can be just represented as 2-element sets of coins:
 
-:math:`CoinPair \triangleq \{p \in P(Coin): a \neq b \}`
+.. math::
+
+    CoinPair \triangleq \{p \in \mathcal{P}(Coin): a \neq b \}
 
 Ordered pairs can be found as a subset of the cartesian product:
 
-:math:`Direction \triangleq \{ <a,b> \in Coin \times Coin: a \neq b \}`
+.. math::
+
+    Direction \triangleq \{ \langle a,b \rangle \in Coin \times Coin: a \neq b \}
 
 Every direction can be converted to coin pair with the following function:
 
-:math:`toPair: Direction \rightarrow CoinPair:`
+.. math::
 
-:math:`toPair(<a,b>) \triangleq {a,b}`
+    toPair: Direction \rightarrow CoinPair: \\
+    toPair(\langle a,b \rangle) \triangleq {a,b}
 
 Limit orders and Positions
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 We materialize orders as records.
 
-:math:`LimitOrder \triangleq [account: Account, direction: Direction, price: Price, amount: Amount, expTime: Time]`
+.. math::
+
+    LimitOrder \triangleq [account: Account, direction: Direction, price: Price, amount: Amount, expTime: Time]
 
 For positions, we really only need to track the amount of tokens sold. Please notice that contrary to the implementation
 model, we are inside of pure math here so everything is immutable by nature:
 
-:math:`Position \triangleq [order: LimitOrder, creationTime: BTime, soldSoFar: Amount]`
+.. math::
+
+    Position \triangleq [order: LimitOrder, creationTime: BTime, soldSoFar: Amount]
 
 DEX state
 ^^^^^^^^^
@@ -145,14 +155,14 @@ positions are coherent with market id
 
 .. math::
 
-  let MarketState = [marketId: CoinPair, ammBalance: [marketId \rightarrow Amount], positions: P(Position)]
+  MarketState \triangleq [marketId: CoinPair, ammBalance: [marketId \rightarrow Amount], positions: P(Position)] \\
   where \forall{s \in MarketState} \forall{p \in s.positions} toPair(p.order.direction) = s.marketId
 
 Then the whole DEX state is composed of account states and markets:
 
 .. math::
 
-  let DexState = [accounts: [Account \rightarrow AccountState], markets: CoinPair \rightarrow MarketState]
+  DexState \triangleq [accounts: [Account \rightarrow AccountState], markets: CoinPair \rightarrow MarketState] \\
   where \forall{s \in DexState} \forall{p \in CoinPair} s.markets(p).marketId = p
 
 Executors and swaps
@@ -160,12 +170,16 @@ Executors and swaps
 
 At the most general level an executor is a machinery to transform DEX states on new order arrival:
 
-:math:`Executor \triangleq [MarketState \times Order \rightarrow MarketState]`
+.. math::
+
+    Executor \triangleq [MarketState \times Order \rightarrow MarketState]
 
 However in the current version of Dexter we limit our attention to a narrow sub-family of executors that can be
 defined via swaps. A **swap** is an "atomic" conversion of tokens done via AMM on behalf of a specified order:
 
-:math:`Swap \triangleq [order: Order, amountSold: Amount, amountBought: Amount]`
+.. math::
+
+    Swap \triangleq [order: Order, amountSold: Amount, amountBought: Amount]
 
 We think of a swap as a trade done against the liquidity pool where only one order is involved. This is in contrary to
 Forex-style exchanges, where an atomic trading action involves always 2 orders.
@@ -174,7 +188,9 @@ Given a swap :math:`swap \in Swap` and a Dex s, we
 
 Swap-based executor is defined by providing a sequence of swaps upon new order arrival:
 
-:math:`SwapBasedExecutor \triangleq [MarketState \times Order \rightarrow MarketState]`
+.. math::
+
+    SwapBasedExecutor \triangleq [MarketState \times Order \rightarrow MarketState]
 
 
 :math:`Swap = []`
