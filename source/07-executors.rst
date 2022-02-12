@@ -50,11 +50,11 @@ In such case equality sign is just the marker of where the definition begins.
 
 We use :math:`where` keyword as a syntax sugar for subset selection in definitions. This:
 
-:math:`A \triangleq SomePossiblyLongSetDefinition \ where \ \forall{x \in SomeSet} SomeCondition(x)`
+:math:`A \triangleq SomePossiblyLongSetDefinition \ where \ \forall{x \in A}, SomeFilteringCondition(x)`
 
 is supposed to mean:
 
-:math:`A \triangleq \{x \in SomePossiblyLongSetDefinition: SomeCondition(x)\}`
+:math:`A \triangleq \{x \in SomePossiblyLongSetDefinition: SomeFilteringCondition(x)\}`
 
 We also borrow TLA+ syntax for function spaces and we write :math:`[S \rightarrow T]` instead of more traditional
 :math:`T^S`.
@@ -82,6 +82,7 @@ We use the following sets/aliases for numerical values:
 
  - :math:`\mathbb{R}_+` is the set of positive real numbers
  - :math:`Time` is just alias for :math:`\mathbb{R}_+ \cup \{ 0 \}`
+ - :math:`BTime` (blockchain-time) is just alias for :math:`\mathbb{N}`
  - :math:`Amount` is just alias for :math:`\mathbb{R}_+ \cup \{ 0 \}`
  - :math:`Price` is just alias for :math:`\mathbb{R}_+ \cup \{ 0 \}`
 
@@ -129,7 +130,7 @@ Every direction can be converted to coin pair with the following function:
 .. math::
 
     &toPair: Direction \rightarrow CoinPair \\
-    &toPair(\langle a,b \rangle) \triangleq {a,b}
+    &toPair(\langle a,b \rangle) \triangleq \{ a,b \}
 
 Limit orders and Positions
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -156,14 +157,14 @@ positions are coherent with market id:
 .. math::
 
   MarketState \triangleq &[marketId: CoinPair, ammBalance: [marketId \rightarrow Amount], positions: P(Position)] \\
-  &where \forall{s \in MarketState} \forall{p \in s.positions} toPair(p.order.direction) = s.marketId
+  &where \  \forall{s \in MarketState}, \forall{p \in s.positions}, toPair(p.order.direction) = s.marketId
 
 Then the whole DEX state is composed of account states and markets:
 
 .. math::
 
   DexState \triangleq &[accounts: [Account \rightarrow AccountState], markets: CoinPair \rightarrow MarketState] \\
-  &where \forall{s \in DexState} \forall{p \in CoinPair} s.markets(p).marketId = p
+  &where \forall{s \in DexState}, \forall{p \in CoinPair}, s.markets(p).marketId = p
 
 Executors and swaps
 ^^^^^^^^^^^^^^^^^^^
@@ -174,8 +175,9 @@ At the most general level an executor is a machinery to transform DEX states on 
 
     Executor \triangleq [MarketState \times Order \rightarrow MarketState]
 
-However in the current version of Dexter we limit our attention to a narrow sub-family of executors that can be
-defined via swaps. A **swap** is an "atomic" conversion of tokens done via AMM on behalf of a specified order:
+However, in the current version of Dexter we limit our attention to certain narrow sub-family of executors - such
+executors that can be defined via "swaps". A **swap** is an "atomic" conversion of tokens done via AMM on behalf of
+a specified order. Formally:
 
 .. math::
 
