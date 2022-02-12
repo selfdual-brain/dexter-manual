@@ -61,8 +61,6 @@ We also borrow TLA+ syntax for function spaces and we write :math:`[S \rightarro
 
 :math:`\mathcal{P}(A)` is the powerset of :math:`A`
 
-
-
 Mathematical framing
 --------------------
 
@@ -104,7 +102,9 @@ represent the identity of traders.
 
 We also need a trader state, which simply tracks the trader's balance for every coin:
 
-:math:`AccountState \triangleq [Coin \rightarrow Amount]`
+.. math::
+
+    AccountState \triangleq [Coin \rightarrow Amount]
 
 Coin pairs
 ^^^^^^^^^^
@@ -128,8 +128,8 @@ Every direction can be converted to coin pair with the following function:
 
 .. math::
 
-    toPair: Direction \rightarrow CoinPair: \\
-    toPair(\langle a,b \rangle) \triangleq {a,b}
+    &toPair: Direction \rightarrow CoinPair \\
+    &toPair(\langle a,b \rangle) \triangleq {a,b}
 
 Limit orders and Positions
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -138,37 +138,37 @@ We materialize orders as records.
 
 .. math::
 
-    LimitOrder \triangleq [account: Account, direction: Direction, price: Price, amount: Amount, expTime: Time]
+    Order \triangleq [account: Account, direction: Direction, price: Price, amount: Amount, expTime: Time]
 
 For positions, we really only need to track the amount of tokens sold. Please notice that contrary to the implementation
 model, we are inside of pure math here so everything is immutable by nature:
 
 .. math::
 
-    Position \triangleq [order: LimitOrder, creationTime: BTime, soldSoFar: Amount]
+    Position \triangleq [order: Order, creationTime: BTime, soldSoFar: Amount]
 
 DEX state
 ^^^^^^^^^
 
 Market state is composed of market id, AMM balance and a collection of positions, plus we need to make sure that
-positions are coherent with market id
+positions are coherent with market id:
 
 .. math::
 
-  MarketState \triangleq [marketId: CoinPair, ammBalance: [marketId \rightarrow Amount], positions: P(Position)] \\
-  where \forall{s \in MarketState} \forall{p \in s.positions} toPair(p.order.direction) = s.marketId
+  MarketState \triangleq &[marketId: CoinPair, ammBalance: [marketId \rightarrow Amount], positions: P(Position)] \\
+  &where \forall{s \in MarketState} \forall{p \in s.positions} toPair(p.order.direction) = s.marketId
 
 Then the whole DEX state is composed of account states and markets:
 
 .. math::
 
-  DexState \triangleq [accounts: [Account \rightarrow AccountState], markets: CoinPair \rightarrow MarketState] \\
-  where \forall{s \in DexState} \forall{p \in CoinPair} s.markets(p).marketId = p
+  DexState \triangleq &[accounts: [Account \rightarrow AccountState], markets: CoinPair \rightarrow MarketState] \\
+  &where \forall{s \in DexState} \forall{p \in CoinPair} s.markets(p).marketId = p
 
 Executors and swaps
 ^^^^^^^^^^^^^^^^^^^
 
-At the most general level an executor is a machinery to transform DEX states on new order arrival:
+At the most general level an executor is a machinery to transform DEX states on new order's arrival:
 
 .. math::
 
@@ -184,9 +184,9 @@ defined via swaps. A **swap** is an "atomic" conversion of tokens done via AMM o
 We think of a swap as a trade done against the liquidity pool where only one order is involved. This is in contrary to
 Forex-style exchanges, where an atomic trading action involves always 2 orders.
 
-Given a swap :math:`swap \in Swap` and a Dex s, we
+Given a :math:`swap \in Swap` and a :math`s \in DexState` we
 
-Swap-based executor is defined by providing a sequence of swaps upon new order arrival:
+Swap-based executor is defined by providing a sequence of swaps upon new order's arrival:
 
 .. math::
 
