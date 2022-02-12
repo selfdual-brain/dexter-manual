@@ -156,8 +156,8 @@ Then the whole DEX state is composed of account states and markets:
   let DexState = [accounts: [Account \rightarrow AccountState], markets: CoinPair \rightarrow MarketState]
   where \forall{s \in DexState} \forall{p \in CoinPair} s.markets(p).marketId = p
 
-Executors
-^^^^^^^^^
+Executors and swaps
+^^^^^^^^^^^^^^^^^^^
 
 At the most general level an executor is a machinery to transform DEX states on new order arrival:
 
@@ -168,14 +168,14 @@ defined via swaps. A **swap** is an "atomic" conversion of tokens done via AMM o
 
 :math:`Swap \triangleq [order: Order, amountSold: Amount, amountBought: Amount]`
 
-We think of a swap as a trade done against the liquidity pool, so only one trader is involved. This is in contrary to
-Forex-style exchanges, where an atomic trading action involves always 2 traders.
+We think of a swap as a trade done against the liquidity pool where only one order is involved. This is in contrary to
+Forex-style exchanges, where an atomic trading action involves always 2 orders.
 
-Swaps
-^^^^^
+Given a swap :math:`swap \in Swap` and a Dex s, we
 
-Swaps are atomic executions. A single swap represents one portion of tokens converted
+Swap-based executor is defined by providing a sequence of swaps upon new order arrival:
 
+:math:`SwapBasedExecutor \triangleq [MarketState \times Order \rightarrow MarketState]`
 
 
 :math:`Swap = []`
