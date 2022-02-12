@@ -41,9 +41,11 @@ and basic mathematical notation (first-order logic). On top of this we borrow fr
  - :math:`[a: String, b: Boolean, c: String]` - this is a set of records with given structure
  - :math:`e.h` - the :math:`h` field of record :math:`e`
 
-We explicitly mark introduction of new symbols by adding keyword :math:`let` at the beginning:
+We explicitly mark introduction of new symbols by using symbol :math:`triangleq` at the beginning:
 
-:math:`let a = 2`
+:math:`a \triangleq 2`
+
+:math:`let \ a = 2`
 
 In such case equality sign is just the market of where the definition begins.
 
@@ -104,7 +106,7 @@ represent the identity of traders.
 
 We also need a trader state, which simply tracks the trader's balance for every coin:
 
-:math:`let AccountState = [Coin \rightarrow Amount]`
+:math:`let \ AccountState = [Coin \rightarrow Amount]`
 
 Coin pairs
 ^^^^^^^^^^
