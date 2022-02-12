@@ -6,50 +6,51 @@ algorithms and especially the comparative measurements of their statistics is th
 Dexter.
 
 An executor can be seen as a manager of position's lifetime. More specifically, the goal of an executor is to
-satisfy traders so that their orders are (eventually) filled. Because a filling can be partial, a lifetime of a position
+satisfy traders so that their orders are (eventually) filled. Because a filling can be partial, the lifetime of a position
 can comprise several swaps. It is the executor who decides about the chronology of swaps to be performed.
 
 Technically, an executor is a piece of software responsible for deciding what will be the next swap to execute.
 
-Within the universe of possible executor algorithms, we distinguish a subset most interesting to us. We will say that
-an executor is **fair-play** if the following conditions hold:
+Within the universe of possible executor algorithms, we will focus on a subset satisfying certain "natural" rules
+that we collectively call **fair-play** conditions:
 
 **Rule #1: Exchange in not biased on traders**
 
-Swaps sequence for a position depends only on the market state and the position parameters. In particular, it does NOT
-depend on any traders data.
+Swaps sequence for a position depends on the market state but does not depend on the identity of traders.
 
-In lame terms it means that all traders are considered "equal" by the executor - i.e. front the perspective of an executor
-a trader is seen as "just an account number" (similar concept to "all citizens are considered equal by law in a democracy"),
+In lame terms it means that all traders are considered "equal" by the executor - i.e. from the perspective of an executor,
+any trader is seen as "just an account number" (similar concept to "all citizens are considered equal by law in a democracy")
 and there is no extra bonus or preference in executing swaps based on account number.
 
-**Rule #2: Higher limit price implies higher priority**
+**Rule #2: Orders execution prioritize traders happy to accept less attractive exchange rate**
 
-A trader ready to pay more is served first.
+A trader ready to pay less attractive (for him) price is served first.
 
-**Rule #3: Longer waiting implies higher priority**
+**Rule #3: In case of the same declared exchange rate, execution priority should favor older order**
 
 In case of a tie in rule #3, a trader waiting longer is served first.
 
 Notation
 --------
 
-This chapter is the only mathematically-involved part of Dexter documentation. We assume set theory (ZCF)
-and basic mathematical notation (first-order logic). On top of this we borrow from TLA+ the syntax for records, i.e.:
+This chapter is the most mathematically-involved part of Dexter documentation. We assume basic set theory (ZFC)
+and basic mathematical notation (first-order logic) knowledge.
 
- - :math:`[a \mapsto 1, b \mapsto true, c \mapsto "snake"]` - this is a sample record
+On top of this we borrow from TLA+ the syntax for records, i.e.:
+
+ - :math:`[a \mapsto 1.0023, b \mapsto true, c \mapsto 'snake']` - this is a sample record
  - :math:`[a: String, b: Boolean, c: String]` - this is a set of records with given structure
- - :math:`e.h` - the :math:`h` field of record :math:`e`
+ - :math:`e.h` - this is how we reference :math:`h` field in record :math:`e`
 
-We explicitly mark introduction of new symbols by using symbol :math:`triangleq` at the beginning:
+We explicitly mark introduction of new symbols by using symbol :math:`\triangleq` at the beginning:
 
 :math:`a \triangleq 2`
 
-In such case equality sign is just the market of where the definition begins.
+In such case equality sign is just the marker of where the definition begins.
 
 We use :math:`where` keyword as a syntax sugar for subset selection in definitions. This:
 
-:math:`A \triangleq SomePossiblyLongSetDefinition \ where \forall{x in SomeSet} SomeCondition(x)`
+:math:`A \triangleq SomePossiblyLongSetDefinition \ where \ \forall{x \in SomeSet} SomeCondition(x)`
 
 is supposed to mean:
 
@@ -58,26 +59,9 @@ is supposed to mean:
 We also borrow TLA+ syntax for function spaces and we write :math:`[S \rightarrow T]` instead of more traditional
 :math:`T^S`.
 
-We make a distinction between mathematical sets of numbers like :math:`\mathbb{N}`, :math:`\mathbb{R}` vs
-implementation-level types like ``Int``, ``Double``.
+:math:`\mathcal{P}(A)` is the powerset of :math:`A`
 
-Additionally:
 
- - :math:`P(A)` is the powerset of :math:`A`
- - :math:`\mathbb{R}_+` is the set of positive real numbers
- - :math:`Time` is just alias for :math:`\mathbb{R}_+ \cup \{ 0 \}`
- - :math:`Amount` is just alias for :math:`\mathbb{R}_+ \cup \{ 0 \}`
- - :math:`Price` is just alias for :math:`\mathbb{R}_+ \cup \{ 0 \}`
-
-Arithmetic precision
---------------------
-
-In Dexter implementation we use ``FPNumber`` type for fixed-point numbers and ``Fraction`` for unlimited-precision
-quotient numbers. ``FPNumber`` is mostly used for amounts of tokens, while ``Fraction`` is mostly used for prices.
-
-We specify executors using real numbers, so withing the idealized formal arithmetic provided by pure math. Fixed-point
-arithmetic adds an extra layer of complexity that could obscure the mathematical clarity of ideas, so we describe
-this layer separately.
 
 Mathematical framing
 --------------------
@@ -86,7 +70,22 @@ For specifying executors, we re-establish here the DEX model again - but this ti
 all we need is to specify execution of orders, we ignore reserve operations (deposit/withdraw) and liquidity management
 (add-liquidity/withdraw-liquidity). We also get rid of identifiers and hashes (mathematical identity does the job).
 
-To bootstrap things we need the following definitions:
+Numbers
+^^^^^^^
+
+In Dexter implementation we use ``FPNumber`` type for fixed-point numbers and ``Fraction`` for unlimited-precision
+quotient numbers. ``FPNumber`` is mostly used for amounts of tokens, while ``Fraction`` is mostly used for prices.
+
+However, in the formal mathematical specifications in this chapter we use mathematical real numbers instead.
+Fixed-point arithmetic adds an extra layer of complexity that could obscure the mathematical clarity of ideas, so we
+describe this complexities separately.
+
+We use the following sets/aliases for numerical values:
+
+ - :math:`\mathbb{R}_+` is the set of positive real numbers
+ - :math:`Time` is just alias for :math:`\mathbb{R}_+ \cup \{ 0 \}`
+ - :math:`Amount` is just alias for :math:`\mathbb{R}_+ \cup \{ 0 \}`
+ - :math:`Price` is just alias for :math:`\mathbb{R}_+ \cup \{ 0 \}`
 
 Coins
 ^^^^^
