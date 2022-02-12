@@ -45,17 +45,15 @@ We explicitly mark introduction of new symbols by using symbol :math:`triangleq`
 
 :math:`a \triangleq 2`
 
-:math:`let \ a = 2`
-
 In such case equality sign is just the market of where the definition begins.
 
 We use :math:`where` keyword as a syntax sugar for subset selection in definitions. This:
 
-:math:`let A = SomePossiblyLongSetDefinition where \forall{x in SomeSet} SomeCondition(x)`
+:math:`A \triangleq SomePossiblyLongSetDefinition \ where \forall{x in SomeSet} SomeCondition(x)`
 
 is supposed to mean:
 
-:math:`let A = \{x \in SomePossiblyLongSetDefinition: SomeCondition(x)\}`
+:math:`A \triangleq \{x \in SomePossiblyLongSetDefinition: SomeCondition(x)\}`
 
 We also borrow TLA+ syntax for function spaces and we write :math:`[S \rightarrow T]` instead of more traditional
 :math:`T^S`.
@@ -106,7 +104,7 @@ represent the identity of traders.
 
 We also need a trader state, which simply tracks the trader's balance for every coin:
 
-:math:`let \ AccountState = [Coin \rightarrow Amount]`
+:math:`AccountState \triangleq [Coin \rightarrow Amount]`
 
 Coin pairs
 ^^^^^^^^^^
@@ -116,29 +114,29 @@ of market identifiers, while ordered pairs are needed to identify trading direct
 
 Unordered pairs can be just represented as 2-element sets of coins:
 
-:math:`let CoinPair = \{p \in P(Coin): a \neq b \}`
+:math:`CoinPair \triangleq \{p \in P(Coin): a \neq b \}`
 
 Ordered pairs can be found as a subset of the cartesian product:
 
-:math:`let Direction = \{ <a,b> \in Coin \times Coin: a \neq b \}`
+:math:`Direction \triangleq \{ <a,b> \in Coin \times Coin: a \neq b \}`
 
 Every direction can be converted to coin pair with the following function:
 
-:math:`let function toPair: Direction \rightarrow CoinPair is:`
+:math:`toPair: Direction \rightarrow CoinPair:`
 
-:math:`toPair(<a,b>) = {a,b}`
+:math:`toPair(<a,b>) \triangleq {a,b}`
 
 Limit orders and Positions
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 We materialize orders as records.
 
-:math:`let LimitOrder = [account: Account, direction: Direction, price: Price, amount: Amount, expTime: Time]`
+:math:`LimitOrder \triangleq [account: Account, direction: Direction, price: Price, amount: Amount, expTime: Time]`
 
 For positions, we really only need to track the amount of tokens sold. Please notice that contrary to the implementation
 model, we are inside of pure math here so everything is immutable by nature:
 
-:math:`let Position = [order: LimitOrder, creationTime: BTime, soldSoFar: Amount]`
+:math:`Position \triangleq [order: LimitOrder, creationTime: BTime, soldSoFar: Amount]`
 
 DEX state
 ^^^^^^^^^
@@ -163,12 +161,12 @@ Executors
 
 At the most general level an executor is a machinery to transform DEX states on new order arrival:
 
-:math:`let Executor = [MarketState \times Order \rightarrow MarketState]`
+:math:`Executor \triangleq [MarketState \times Order \rightarrow MarketState]`
 
 However in the current version of Dexter we limit our attention to a narrow sub-family of executors that can be
 defined via swaps. A **swap** is an "atomic" conversion of tokens done via AMM on behalf of a specified order:
 
-:math:`let Swap = [order: Order, amountSold: Amount, amountBought: Amount]`
+:math:`Swap \triangleq [order: Order, amountSold: Amount, amountBought: Amount]`
 
 We think of a swap as a trade done against the liquidity pool, so only one trader is involved. This is in contrary to
 Forex-style exchanges, where an atomic trading action involves always 2 traders.
