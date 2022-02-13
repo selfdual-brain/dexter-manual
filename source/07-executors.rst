@@ -129,8 +129,8 @@ Every direction can be converted to coin pair with the following function:
 
 .. math::
 
-    &toPair: Direction \rightarrow CoinPair \\
-    &toPair(\langle a,b \rangle) \triangleq \{ a,b \}
+    &toMarketId: Direction \rightarrow CoinPair \\
+    &toMarketId(\langle a,b \rangle) \triangleq \{ a,b \}
 
 Limit orders and Positions
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -157,7 +157,7 @@ positions are coherent with market id:
 .. math::
 
   MarketState \triangleq &[marketId: CoinPair, ammBalance: [marketId \rightarrow Amount], positions: P(Position)] \\
-  &where \  \forall{s \in MarketState}, \forall{p \in s.positions}, toPair(p.order.direction) = s.marketId
+  &where \  \forall{s \in MarketState}, \forall{p \in s.positions}, toMarketId(p.order.direction) = s.marketId
 
 Then the whole DEX state is composed of account states and markets:
 
@@ -186,7 +186,33 @@ a specified order. Formally:
 We think of a swap as a trade done against the liquidity pool where only one order is involved. This is in contrary to
 Forex-style exchanges, where an atomic trading action involves always 2 orders.
 
-Given a :math:`swap \in Swap` and a :math`s \in DexState` we
+Given a :math:`swap \in Swap` and a :math`s \in DexState` we can define what does it mean to "apply" :math:`swap`
+to :math:`s`. Intuition is very simple - we read the swap as a recipe to perform two token transfers between
+liquidity pool and one trader. So position will be updated, liquidity pool will be updated and corresponding account
+will be updated. Formally:
+
+.. math::
+
+    apply: DexState \times Swap \rightarrow DexState \\
+
+where the function operates as follows:
+
+.. math::
+
+    apply&(s, swap) \triangleq = [accounts \mapsto newAllAccountsState, markets \mapsto newMarketsState] \ where: \\
+    &let \ account = swap.order.account \\
+    &soldCoin = swap.order.direction(0) \\
+    &boughtCoin = swap.order.direction(1) \\
+    &let \ newAccState = accounts(account) \ except: soldCoin \mapsto (@ - swap.amountSold), boughtCoin \mapsto (@ + swap.amountBought) \\
+    &let \ newAllAccountsState = s.accounts \ except: \ account \mapsto newAccState \\
+    &let \ mId = toMarketId(s.markets.order.direction) \\
+    &let \ oldMarketState = s.markets(mId) \\
+    &let \ oldAmmBalance = oldMarketState.ammBalance \\
+    &let \ oldPosition \in oldMarketState.positions \ such \ that \ oldPosition.order = swap.order \\
+    &let \ newPosition = oldPosition \ except \ soldSoFar \mapsto @ + swap.amountSold \\
+    &let \ newPositions = oldMarketState.positions - oldPosition + newPosition \\
+    &let \ newAmmBalance = [soldCoin \mapsto oldAmmBalance(soldCoin) + swap.amountSold, boughtCoin \mapsto oldAmmBalance(boughtCoin) - swap.amountBought] \\
+    &let \ newMarketState = [markerId \mapsto mId, ammBalance \mapsto newAmmbalance, positions \mapsto newPositions]
 
 Swap-based executor is defined by providing a sequence of swaps upon new order's arrival:
 
