@@ -156,8 +156,8 @@ positions are coherent with market id:
 
 .. math::
 
-  MarketState \triangleq &[marketId: CoinPair, ammBalance: [marketId \rightarrow Amount], positions: P(Position)] \\
-  &where \  \forall{s \in MarketState}, \forall{p \in s.positions}, toMarketId(p.order.direction) = s.marketId
+  MarketState \triangleq [marketId: CoinPair, ammBalance: [marketId \rightarrow Amount], positions: P(Position)] \\
+  & \ \ \ \ where \  \forall{s \in MarketState}, \forall{p \in s.positions}, toMarketId(p.order.direction) = s.marketId
 
 Then the whole DEX state is composed of account states and markets:
 
@@ -193,21 +193,50 @@ and corresponding account will be updated. Formally:
 
 .. math::
 
-    applySwap: DexState \times Swap \rightarrow DexState \\
+    applySwapToDex: DexState \times Swap \rightarrow DexState
 
-We will define :math:`applySwap` in steps. Fist we need to know how a swap operates on the trader account:
+We will define :math:`applySwapToDex` in steps. Fist we need to know how a swap operates on the trader account:
 
 .. math::
 
     &applySwapToAccount: AccountState \times Swap \rightarrow AccountState \\
     &let \ soldCoin = swap.order.direction(0) \\
     &let \ boughtCoin = swap.order.direction(1) \\
-    &applySwapToAccount(state, swap) \triangleq state \ except \\
-    & \ \ soldCoin \mapsto (@ - swap.amountSold), boughtCoin \mapsto (@ + swap.amountBought)
+    &applySwapToAccount(state, swap) \triangleq state \ except: \\
+    & \ \ \ \ soldCoin \mapsto (@ - swap.amountSold), boughtCoin \mapsto (@ + swap.amountBought)
 
-Then let us define how a swap operates on a liquidity pool:
+Then let us define how a swap operates on a liquidity pool on a market :math:`marketId \in CoinPair`:
 
+.. math::
 
+    &applySwapToAmm: [marketId \rightarrow Amount] \times Swap \rightArrow [marketId \rightarrow Amount] \\
+    &let \ soldCoin = swap.order.direction(0) \\
+    &let \ boughtCoin = swap.order.direction(1) \\
+    &applySwapToAmm(ammBal, swap) \triangleq \\
+    & \ \ \ \ [soldCoin \mapsto ammBal(soldCoin) + swap.amountSold, boughtCoin \mapsto ammBal(boughtCoin) - swap.amountBought]
+
+For a position we just need to update the amount sold:
+
+.. math::
+
+    &applySwapToPosition: Position \times Swap \rightarrow Position \\
+    &applySwapToPosition(p, swap) \triangleq p \ except: soldSoFar \mapsto @ + swap.amountSold
+
+Finally we are ready to define :math:`applySwapToDex`:
+
+.. math::
+
+    &applySwapToDex: DexState \times Swap \rightarrow DexState \\
+    &applySwapToDex(s, swap) \triangleq \\
+    & \ \ \ \ let \ account = swap.order.account \\
+    & \ \ \ \ let \ mId = toMarketId(s.markets.order.direction) \\
+    & \ \ \ \ let \ oldPosition \in oldMarketState.positions \ such \ that \ oldPosition.order = swap.order \\
+    & \ \ \ \ let newAllAccState = s.accounts \ except: account \mapsto applySwapToAccount(@) \\
+    & \ \ \ \ let newPositions = s.positions - oldPosition + applySwapToPosition(oldPosition) \\
+    & \ \ \ \ let newAmmBalance = applySwapToAmm(s.markets(mId)) \\
+    & \ \ \ \ let \ newMarketState = [marketId \mapsto mId, ammBalance \mapsto newAmmbalance, positions \mapsto newPositions]
+    & \ \ \ \ let newMarkets = s.markets except: mId \mapsTo newMarketState \\
+    & \ \ \ \ [accounts \mapsto newAllAccState, markets \mapsto newMarkets]
 
 ---------------------------------------------------------------------
 
@@ -226,8 +255,9 @@ where the function operates as follows:
     &let \ oldMarketState = s.markets(mId) \\
     &let \ oldAmmBalance = oldMarketState.ammBalance \\
     &let \ oldPosition \in oldMarketState.positions \ such \ that \ oldPosition.order = swap.order \\
-    &let \ newPosition = oldPosition \ except \ soldSoFar \mapsto @ + swap.amountSold \\
+    &let \ newPosition = oldPosition \ except: \ soldSoFar \mapsto @ + swap.amountSold \\
     &let \ newPositions = oldMarketState.positions - oldPosition + newPosition \\
+
     &let \ newAmmBalance = [ \\
     &   soldCoin \mapsto oldAmmBalance(soldCoin) + swap.amountSold, \\
     &   boughtCoin \mapsto oldAmmBalance(boughtCoin) - swap.amountBought] \\
