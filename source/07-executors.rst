@@ -186,14 +186,29 @@ a specified order. Formally:
 We think of a swap as a trade done against the liquidity pool where only one order is involved. This is in contrary to
 Forex-style exchanges, where an atomic trading action involves always 2 orders.
 
-Given a :math:`swap \in Swap` and a :math`s \in DexState` we can define what does it mean to "apply" :math:`swap`
-to :math:`s`. Intuition is very simple - we read the swap as a recipe to perform two token transfers between
-liquidity pool and one trader. So position will be updated, liquidity pool will be updated and corresponding account
-will be updated. Formally:
+Given a :math:`swap \in Swap` and a :math:`s \in DexState` we can define what does it mean to "apply" :math:`swap`
+to :math:`s`. Intuitively - we read the swap as a recipe to perform two token transfers between
+liquidity pool and the trader which issued specified order. So position will be updated, liquidity pool will be updated
+and corresponding account will be updated. Formally:
 
 .. math::
 
-    apply: DexState \times Swap \rightarrow DexState \\
+    applySwap: DexState \times Swap \rightarrow DexState \\
+
+We will define :math:`applySwap` in steps. Fist we need to know how a swap operates on the trader account:
+
+.. math::
+
+    applySwapToAccount: AccountState \times Swap \rightarrow AccountState \\
+    &let \ soldCoin = swap.order.direction(0) \\
+    &let \ boughtCoin = swap.order.direction(1) \\
+    applySwapToAccount(state, swap) \triangleq state \ except soldCoin \mapsto (@ - swap.amountSold), boughtCoin \mapsto (@ + swap.amountBought)
+
+Then let us define how a swap operates on a liquidity pool:
+
+
+
+---------------------------------------------------------------------
 
 where the function operates as follows:
 
