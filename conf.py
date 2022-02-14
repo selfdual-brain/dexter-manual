@@ -35,3 +35,11 @@ html_theme = 'sphinx_rtd_theme'
 
 # -- Options for EPUB output
 epub_show_urls = 'footnote'
+
+# -- Options for LaTeX output ---------------------------------------------
+
+mathjax3_config = {
+    'chtml' : {
+        'scale' : 0.8,
+    }
+}

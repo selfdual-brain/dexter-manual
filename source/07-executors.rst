@@ -199,11 +199,12 @@ where the function operates as follows:
 
 .. math::
 
-    apply&(s, swap) \triangleq = [accounts \mapsto newAllAccountsState, markets \mapsto newMarketsState] \ where: \\
+    &apply(s, swap) \triangleq [accounts \mapsto newAllAccountsState, markets \mapsto newMarketsState] \ where: \\
     &let \ account = swap.order.account \\
-    &soldCoin = swap.order.direction(0) \\
-    &boughtCoin = swap.order.direction(1) \\
-    &let \ newAccState = accounts(account) \ except: soldCoin \mapsto (@ - swap.amountSold), boughtCoin \mapsto (@ + swap.amountBought) \\
+    &let \ soldCoin = swap.order.direction(0) \\
+    &let \ boughtCoin = swap.order.direction(1) \\
+    &let \ newAccState = accounts(account) \ except:
+    &    soldCoin \mapsto (@ - swap.amountSold), boughtCoin \mapsto (@ + swap.amountBought) \\
     &let \ newAllAccountsState = s.accounts \ except: \ account \mapsto newAccState \\
     &let \ mId = toMarketId(s.markets.order.direction) \\
     &let \ oldMarketState = s.markets(mId) \\
@@ -211,7 +212,9 @@ where the function operates as follows:
     &let \ oldPosition \in oldMarketState.positions \ such \ that \ oldPosition.order = swap.order \\
     &let \ newPosition = oldPosition \ except \ soldSoFar \mapsto @ + swap.amountSold \\
     &let \ newPositions = oldMarketState.positions - oldPosition + newPosition \\
-    &let \ newAmmBalance = [soldCoin \mapsto oldAmmBalance(soldCoin) + swap.amountSold, boughtCoin \mapsto oldAmmBalance(boughtCoin) - swap.amountBought] \\
+    &let \ newAmmBalance = [ \\
+    &   soldCoin \mapsto oldAmmBalance(soldCoin) + swap.amountSold, \\
+    &   boughtCoin \mapsto oldAmmBalance(boughtCoin) - swap.amountBought] \\
     &let \ newMarketState = [markerId \mapsto mId, ammBalance \mapsto newAmmbalance, positions \mapsto newPositions]
 
 Swap-based executor is defined by providing a sequence of swaps upon new order's arrival:
