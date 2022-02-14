@@ -199,10 +199,11 @@ We will define :math:`applySwap` in steps. Fist we need to know how a swap opera
 
 .. math::
 
-    applySwapToAccount: AccountState \times Swap \rightarrow AccountState \\
+    &applySwapToAccount: AccountState \times Swap \rightarrow AccountState \\
     &let \ soldCoin = swap.order.direction(0) \\
     &let \ boughtCoin = swap.order.direction(1) \\
-    applySwapToAccount(state, swap) \triangleq state \ except soldCoin \mapsto (@ - swap.amountSold), boughtCoin \mapsto (@ + swap.amountBought)
+    &applySwapToAccount(state, swap) \triangleq state \ except \\
+    & \ \ soldCoin \mapsto (@ - swap.amountSold), boughtCoin \mapsto (@ + swap.amountBought)
 
 Then let us define how a swap operates on a liquidity pool:
 
