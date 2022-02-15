@@ -156,15 +156,15 @@ positions are coherent with market id:
 
 .. math::
 
-  MarketState \triangleq [marketId: CoinPair, ammBalance: [marketId \rightarrow Amount], positions: P(Position)] \\
+  &MarketState \triangleq [marketId: CoinPair, ammBalance: [marketId \rightarrow Amount], positions: \mathcal{P}(Position)] \\
   & \ \ \ \ where \  \forall{s \in MarketState}, \forall{p \in s.positions}, toMarketId(p.order.direction) = s.marketId
 
 Then the whole DEX state is composed of account states and markets:
 
 .. math::
 
-  DexState \triangleq &[accounts: [Account \rightarrow AccountState], markets: CoinPair \rightarrow MarketState] \\
-  &where \forall{s \in DexState}, \forall{p \in CoinPair}, s.markets(p).marketId = p
+  &DexState \triangleq [accounts: [Account \rightarrow AccountState], markets: CoinPair \rightarrow MarketState] \\
+  & \ \ \ \ where \forall{s \in DexState}, \forall{p \in CoinPair}, s.markets(p).marketId = p
 
 Executors and swaps
 ^^^^^^^^^^^^^^^^^^^
@@ -231,43 +231,18 @@ Finally we are ready to define :math:`applySwapToDex`:
     & \ \ \ \ let \ account = swap.order.account \\
     & \ \ \ \ let \ mId = toMarketId(s.markets.order.direction) \\
     & \ \ \ \ let \ oldPosition \in oldMarketState.positions \ such \ that \ oldPosition.order = swap.order \\
-    & \ \ \ \ let newAllAccState = s.accounts \ except: account \mapsto applySwapToAccount(@) \\
-    & \ \ \ \ let newPositions = s.positions - oldPosition + applySwapToPosition(oldPosition) \\
-    & \ \ \ \ let newAmmBalance = applySwapToAmm(s.markets(mId)) \\
-    & \ \ \ \ let \ newMarketState = [marketId \mapsto mId, ammBalance \mapsto newAmmbalance, positions \mapsto newPositions]
+    & \ \ \ \ let \ newAllAccState = s.accounts \ except: account \mapsto applySwapToAccount(@) \\
+    & \ \ \ \ let \ newPositions = s.positions - oldPosition + applySwapToPosition(oldPosition) \\
+    & \ \ \ \ let \ newAmmBalance = applySwapToAmm(s.markets(mId)) \\
+    & \ \ \ \ let \ newMarketState = [marketId \mapsto mId, ammBalance \mapsto newAmmbalance, positions \mapsto newPositions] \\
     & \ \ \ \ let newMarkets = s.markets except: mId \mapsTo newMarketState \\
     & \ \ \ \ [accounts \mapsto newAllAccState, markets \mapsto newMarkets]
-
----------------------------------------------------------------------
-
-where the function operates as follows:
-
-.. math::
-
-    &apply(s, swap) \triangleq [accounts \mapsto newAllAccountsState, markets \mapsto newMarketsState] \ where: \\
-    &let \ account = swap.order.account \\
-    &let \ soldCoin = swap.order.direction(0) \\
-    &let \ boughtCoin = swap.order.direction(1) \\
-    &let \ newAccState = accounts(account) \ except:
-    &    soldCoin \mapsto (@ - swap.amountSold), boughtCoin \mapsto (@ + swap.amountBought) \\
-    &let \ newAllAccountsState = s.accounts \ except: \ account \mapsto newAccState \\
-    &let \ mId = toMarketId(s.markets.order.direction) \\
-    &let \ oldMarketState = s.markets(mId) \\
-    &let \ oldAmmBalance = oldMarketState.ammBalance \\
-    &let \ oldPosition \in oldMarketState.positions \ such \ that \ oldPosition.order = swap.order \\
-    &let \ newPosition = oldPosition \ except: \ soldSoFar \mapsto @ + swap.amountSold \\
-    &let \ newPositions = oldMarketState.positions - oldPosition + newPosition \\
-
-    &let \ newAmmBalance = [ \\
-    &   soldCoin \mapsto oldAmmBalance(soldCoin) + swap.amountSold, \\
-    &   boughtCoin \mapsto oldAmmBalance(boughtCoin) - swap.amountBought] \\
-    &let \ newMarketState = [markerId \mapsto mId, ammBalance \mapsto newAmmbalance, positions \mapsto newPositions]
 
 Swap-based executor is defined by providing a sequence of swaps upon new order's arrival:
 
 .. math::
 
-    SwapBasedExecutor \triangleq [MarketState \times Order \rightarrow MarketState]
+    SwapBasedExecutor \triangleq [DexState \times Order \rightarrow Seq(Swap)]
 
 
 :math:`Swap = []`
