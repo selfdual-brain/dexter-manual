@@ -59,7 +59,20 @@ is supposed to mean:
 We also borrow TLA+ syntax for function spaces and we write :math:`[S \rightarrow T]` instead of more traditional
 :math:`T^S`.
 
-:math:`\mathcal{P}(A)` is the powerset of :math:`A`
+:math:`\mathcal{P}(A)` is the powerset of :math:`A`.
+
+We use a special syntax sugar for defining functions which are modifications of previously defined functions.
+Given a function :math:`f: A \rightarrow B`, we can define :math:`g \triangleq f except: f(a) = b` and then
+the following holds:
+
+.. math::
+
+    g(x) =
+    \begin{cases}
+    f(x), for x \neq a \\
+    b, for x = a
+    \end(cases)
+
 
 Mathematical framing
 --------------------
@@ -169,7 +182,7 @@ Then the whole DEX state is composed of account states and markets:
 Executors and swaps
 ^^^^^^^^^^^^^^^^^^^
 
-At the most general level an executor is a machinery to transform DEX states on new order's arrival:
+At the most general level an executor is a machinery to transform market states on new order's arrival:
 
 .. math::
 
@@ -234,8 +247,8 @@ Finally we are ready to define :math:`applySwapToDex`:
     & \ \ \ \ let \ newAllAccState = s.accounts \ except: account \mapsto applySwapToAccount(@) \\
     & \ \ \ \ let \ newPositions = s.positions - oldPosition + applySwapToPosition(oldPosition) \\
     & \ \ \ \ let \ newAmmBalance = applySwapToAmm(s.markets(mId)) \\
-    & \ \ \ \ let \ newMarketState = [marketId \mapsto mId, ammBalance \mapsto newAmmbalance, positions \mapsto newPositions] \\
-    & \ \ \ \ let newMarkets = s.markets except: mId \mapsTo newMarketState \\
+    & \ \ \ \ let \ newMarketState = [marketId \mapsto mId, ammBalance \mapsto newAmmBalance, positions \mapsto newPositions] \\
+    & \ \ \ \ let \ newMarkets = s.markets \ except: mId \mapsto newMarketState \\
     & \ \ \ \ [accounts \mapsto newAllAccState, markets \mapsto newMarkets]
 
 Swap-based executor is defined by providing a sequence of swaps upon new order's arrival:
