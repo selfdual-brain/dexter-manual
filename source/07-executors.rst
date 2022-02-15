@@ -62,16 +62,35 @@ We also borrow TLA+ syntax for function spaces and we write :math:`[S \rightarro
 :math:`\mathcal{P}(A)` is the powerset of :math:`A`.
 
 We use a special syntax sugar for defining functions which are modifications of previously defined functions.
-Given a function :math:`f: A \rightarrow B`, we can define :math:`g \triangleq f except: f(a) = b` and then
+Given a function :math:`f: A \rightarrow B`, we can define :math:`g \triangleq f except: a \mapsto b` and then
 the following holds:
 
 .. math::
 
     g(x) =
     \begin{cases}
-    f(x), for x \neq a \\
-    b, for x = a
+    f(x), for \ x \neq a \\
+    b, for \ x = a
     \end{cases}
+
+On the right-hand side of "except" clause, :math:`@` is a reference to the original value of function. For example let
+us modify function :math:`sin: \mathbb{R} \rightarrow \mathbb{R}`:
+
+.. math::
+
+    f = sin except: 0 \mapsto cos(@)
+
+This is equivalent to:
+
+.. math::
+
+    f = sin except: 0 \mapsto cos(sin(0))
+
+... which is equivalent to:
+
+.. math::
+
+    f = sin except: 0 \mapsto 1
 
 
 Mathematical framing
@@ -222,7 +241,7 @@ Then let us define how a swap operates on a liquidity pool on a market :math:`ma
 
 .. math::
 
-    &applySwapToAmm: [marketId \rightarrow Amount] \times Swap \rightArrow [marketId \rightarrow Amount] \\
+    &applySwapToAmm: [marketId \rightarrow Amount] \times Swap \rightarrow [marketId \rightarrow Amount] \\
     &let \ soldCoin = swap.order.direction(0) \\
     &let \ boughtCoin = swap.order.direction(1) \\
     &applySwapToAmm(ammBal, swap) \triangleq \\
