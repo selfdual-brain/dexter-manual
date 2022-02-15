@@ -71,7 +71,7 @@ the following holds:
     \begin{cases}
     f(x), for x \neq a \\
     b, for x = a
-    \end(cases)
+    \end{cases}
 
 
 Mathematical framing
