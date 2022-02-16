@@ -78,19 +78,19 @@ us modify function :math:`sin: \mathbb{R} \rightarrow \mathbb{R}`:
 
 .. math::
 
-    f = sin except: 0 \mapsto cos(@)
+    f = sin \ except: 0 \mapsto cos(@)
 
 This is equivalent to:
 
 .. math::
 
-    f = sin except: 0 \mapsto cos(sin(0))
+    f = sin \ except: 0 \mapsto cos(sin(0))
 
 ... which is equivalent to:
 
 .. math::
 
-    f = sin except: 0 \mapsto 1
+    f = sin \ except: 0 \mapsto 1
 
 
 Mathematical framing
@@ -180,8 +180,8 @@ model, we are inside of pure math here so everything is immutable by nature:
 
     Position \triangleq [order: Order, creationTime: BTime, soldSoFar: Amount]
 
-DEX state
-^^^^^^^^^
+Market state
+^^^^^^^^^^^^
 
 Market state is composed of market id, AMM balance and a collection of positions, plus we need to make sure that
 positions are coherent with market id:
@@ -191,15 +191,20 @@ positions are coherent with market id:
   &MarketState \triangleq [marketId: CoinPair, ammBalance: [marketId \rightarrow Amount], positions: \mathcal{P}(Position)] \\
   & \ \ \ \ where \  \forall{s \in MarketState}, \forall{p \in s.positions}, toMarketId(p.order.direction) = s.marketId
 
-Then the whole DEX state is composed of account states and markets:
+DEX state
+^^^^^^^^^
+
+The whole DEX state is composed of account states and markets:
 
 .. math::
 
-  &DexState \triangleq [accounts: [Account \rightarrow AccountState], markets: CoinPair \rightarrow MarketState] \\
+  AllAccountsSnapshot \triangleq [Account \rightarrow AccountState]
+
+  &DexState \triangleq [accounts: AllAccountsSnapshot, markets: [CoinPair \rightarrow MarketState]] \\
   & \ \ \ \ where \forall{s \in DexState}, \forall{p \in CoinPair}, s.markets(p).marketId = p
 
-Executors and swaps
-^^^^^^^^^^^^^^^^^^^
+Executors
+^^^^^^^^^
 
 At the most general level an executor is a machinery to transform market states on new order's arrival:
 
@@ -207,9 +212,29 @@ At the most general level an executor is a machinery to transform market states 
 
     Executor \triangleq [MarketState \times Order \rightarrow MarketState]
 
-However, in the current version of Dexter we limit our attention to certain narrow sub-family of executors - such
-executors that can be defined via "swaps". A **swap** is an "atomic" conversion of tokens done via AMM on behalf of
-a specified order. Formally:
+However, in the current version of Dexter we limit our attention to most simple executors - namely we require that:
+
+  1. An executor keeps isolation of markets.
+  2. An executor can be defined as swaps generator.
+
+Intuitively:
+
+  - condition (1) means that adding an order to the DEX should change only the state of this market where the order
+    belongs to
+  - condition (2) means that consequences of adding an order to DEX should be described as a sequence of "atomic"
+    trades against AMM
+
+Such executors we will call **Swap-based executors**.
+
+Caution: Above restriction was an arbitrary choice of research scope. There are for sure interesting executors beyond
+the family we restricted our attention to.
+
+Swaps
+^^^^^
+
+We will now define formally the concept of :math:`SwapBasedExecutor`.
+
+A **swap** is an "atomic" conversion of tokens done via AMM on behalf of a specified order. Formally:
 
 .. math::
 
@@ -220,8 +245,8 @@ Forex-style exchanges, where an atomic trading action involves always 2 orders.
 
 Given a :math:`swap \in Swap` and a :math:`s \in DexState` we can define what does it mean to "apply" :math:`swap`
 to :math:`s`. Intuitively - we read the swap as a recipe to perform two token transfers between
-liquidity pool and the trader which issued specified order. So position will be updated, liquidity pool will be updated
-and corresponding account will be updated. Formally:
+liquidity pool and the trader which issued specified order. So one position will be updated (i.e. replaced in the
+collection of positions), liquidity pool will be updated and corresponding account will be updated. Formally:
 
 .. math::
 
@@ -237,7 +262,7 @@ We will define :math:`applySwapToDex` in steps. Fist we need to know how a swap 
     &applySwapToAccount(state, swap) \triangleq state \ except: \\
     & \ \ \ \ soldCoin \mapsto (@ - swap.amountSold), boughtCoin \mapsto (@ + swap.amountBought)
 
-Then let us define how a swap operates on a liquidity pool on a market :math:`marketId \in CoinPair`:
+Then let us define how a swap operates on a liquidity pool (at some market :math:`marketId \in CoinPair`):
 
 .. math::
 
@@ -274,7 +299,23 @@ Swap-based executor is defined by providing a sequence of swaps upon new order's
 
 .. math::
 
-    SwapBasedExecutor \triangleq [DexState \times Order \rightarrow Seq(Swap)]
+    SwapBasedExecutor \triangleq [MarketState \times AllAccountsSnapshot \times Order \rightarrow Seq(Swap)]
+
+Of course we require that resulting sequence can be non-empty only when the order belongs to the market:
+
+.. math::
+
+    &\forall{e \in SwapBasedExecutor}, \forall{ms \in MarketState}, \forall{as \in AllAccountsSnapshot} \forall{o \in Order}
+    & \ \ \ \ toMarketId(order.direction) \neq ms.marketId \Rightarrow e(ms, as, o) = \langle \rangle
+
+The final step is to explain how having a swap-based executor leads to the actual executor. Let's assume we have
+:math:`e \in SwapBasedExecutor`. In other words we have a function :math:`DexState \times Order \rightarrow Seq(Swap)`.
+Now we need to construct a function :math:`MarketState \times Order \rightarrow MarketState` based on :math:`e`.
+
+.. math::
+
+
+
 
 
 :math:`Swap = []`
