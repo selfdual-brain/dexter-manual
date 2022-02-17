@@ -305,10 +305,20 @@ Of course we require that resulting sequence can be non-empty only when the orde
 
 .. math::
 
-    &\forall{e \in SwapBasedExecutor}, \forall{ms \in MarketState}, \forall{as \in AllAccountsSnapshot} \forall{o \in Order}
+    & \forall{e \in SwapBasedExecutor}, \forall{ms \in MarketState}, \forall{as \in AllAccountsSnapshot}, \forall{o \in Order}
     & \ \ \ \ toMarketId(order.direction) \neq ms.marketId \Rightarrow e(ms, as, o) = \langle \rangle
 
-The final step is to explain how having a swap-based executor leads to the actual executor. Let's assume we have
+The final step is to explain how to construct an executor from having just a swap-based executor. We begin from having
+:math:`e \in SwapBasedExecutor`, i.e. a function:
+
+.. math::
+
+    DexState \times AllAccountsSnapshot \times Order \rightarrow Seq(Swap)
+
+
+
+
+leads to the actual executor. Let's assume we have
 :math:`e \in SwapBasedExecutor`. In other words we have a function :math:`DexState \times Order \rightarrow Seq(Swap)`.
 Now we need to construct a function :math:`MarketState \times Order \rightarrow MarketState` based on :math:`e`.
 
