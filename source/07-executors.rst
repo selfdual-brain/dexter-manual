@@ -15,17 +15,20 @@ Space of executors research
 In the current version of Dexter we limit our attention to certain natural space of most simplistic executors. Our
 limiting conditions are as follows:
 
-**Rule #1: Equality of traders**
-  This rule means that the exchange in not "biased" on trader's identity. Swaps sequence for a position depends only
-  on the state od the exchange (i.e. does not depend on the identity of traders).
+**Rule #1: Funds locking**
+  Trader can place an order on the DEX only if the balance of tokens to be sold is covered by trader's account. Upon
+  placing an order, the executor will "lock" the tokens to be sold. Locked tokens cannot be reused in another order.
+  Locked tokens get unlock on order expiration or cancellation.
 
-  In lame terms it means that all traders are considered "equal" by the executor - i.e. from the perspective of an
-  executor, any trader is seen as "just an account number" (similar concept to "all citizens are considered equal by law
-  in a democracy") and there is no extra bonus or preference in executing swaps based on account number.
+**Rule #2: Equality of traders**
+  Swaps sequence for a position can depend only on the state of markets (i.e. it is not allowed that it depends on the
+  state of traders).
 
-**Rule #2: Funds locking**
-  fsdsd
-
+  This rule means that the exchange in not "biased" on trader's identity or wealth. In lame terms it means that all
+  traders are considered "equally important" by the executor - i.e. from the perspective of an executor, any trader is
+  seen as "just an account number" (similar concept to "all citizens are considered equal by law in a democracy").
+  Current balance of trader's account, past history of trading operations a trader did or a trader name - all this
+  cannot influence the operations of the executor.
 
 **Rule #3: Natural trading priority**
   Execution prioritizes a trader happy to accept less attractive exchange rate (i.e. an exchange rate that gives him
@@ -34,16 +37,28 @@ limiting conditions are as follows:
 **Rule #4: Isolation of markets**
   Arrival of a new order generates swaps only on the market where this order belongs to.
 
-
 **Rule #5: Isolation of traders**
   Every swap involves only one order.
-
 
 **Rule #6: Isolation of swaps**
   An executor makes next-swap decision based only on the current state of the market and number of swaps executed in
   the current executor loop. The intention here is that the executor is not allowed to decide based on the history of
   executes swaps.
 
+Motivation for above rules comes from various sources:
+
+  - Rules #2 and #3 seem to be very natual and go along the general expectations of the wide public; any DEX violating
+    these rules would be really a weird one
+  - Rule #1 is completely arbitrary business-level decision made in Onomy; DEXes violating this rule are probably
+    quite useful and interesting, although it must be said that their trading mechanics would be even more distant
+    from Forex tradition; therefore the motivation behind #1 can be seen as "let's keep things mentally closer
+    to Forex community" (please notice that Dexter is all about simulating hybrid exchanges, so the analogy to Forex
+    is always around by the very nature of "hybrid" part)
+  - Rules #4, #5, #6 delineate the boundary of "simplest executors one can consider"; anything beyond this region
+    immediately becomes complex and sophisticated; from this perspective the mission of Dexter can be understood as
+    "let's see how far we can get with those simplistic executors before we delve into sophisticated ones". A good
+    motivation for cancelling #4 would be making a DEX where arbitrage is impossible. A good motivation for cancelling
+    #5 would be borrowing from Forex the idea of direct trader-to-trader swaps, i.e. bypassing the AMM if possible.
 
 Executor loop overview
 ----------------------
