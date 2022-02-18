@@ -15,7 +15,7 @@ Space of executors research
 In the current version of Dexter we limit our attention to certain natural space of most simplistic executors. Our
 limiting conditions are as follows:
 
-Rule #1: Equality of traders
+**Rule #1: Equality of traders**
   This rule means that the exchange in not "biased" on trader's identity. Swaps sequence for a position depends only
   on the state od the exchange (i.e. does not depend on the identity of traders).
 

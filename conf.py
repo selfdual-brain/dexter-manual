@@ -43,3 +43,6 @@ mathjax3_config = {
         'scale' : 0.8,
     }
 }
+
+# -- Options for HTML output ---------------------------------------------
+html_theme = 'sphinx_rtd_theme
