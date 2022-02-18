@@ -46,3 +46,6 @@ mathjax3_config = {
 
 # -- Options for HTML output ---------------------------------------------
 html_theme = 'sphinx_rtd_theme
+
+# Enable HTML5 writer support
+#html_experimental_html5_writer = True
