@@ -177,19 +177,23 @@ of base tokens and quote tokens.
 Liquidity pools
 ---------------
 
-A separate liquidity pool is attached to every market. Liquidity pool is composed of 2 elements:
+DEX-es we investigate are all based on so called "liquidity pools". A liquidity pool is just certain amount of tokens
+kept as a "operational buffer" by the exchange. Thanks to the existence of such buffer, orders execution may be
+achieved as trader-vs-pool transfers. This is in contrary to traditional exchanges (like Forex), where execution of
+orders is achieved via matching sell-vs-buy orders, which leads to trader-vs-trader transfers.
 
-  - two variables - ``ammBase`` and ``ammQuote`` - keeping track of base coin and quote coin amounts in the pool
-  - a collection of "drops"
+A separate liquidity pool is attached to every market and technically has a form of two variables tracing the pool
+balance - one variable for each coin on the market. See the variable ``HalfMarket.pool`` on DEX model above.
 
-Liquidity pool is the way we establish the concept of "current price" on the market: it is just the value
-``ammQuote / ammBase``.
+The accumulation of tokens in the liquidity pool is based on active participation of investors. Any trader can become
+an investor in any liquidity pool by issuing "addLiquidity" transaction. The effect of this transaction will be
+a donation of proportional amounts of both coins to the pool.
 
-The way DEX is executing orders is fundamentally based on liquidity pools. Instead of matching sell and buy orders
-(as happens on Forex), the DEX executes trading against the liquidity pool attached to the relevant market. How exactly
-this execution works depends on a specific executor in use (see the next chapter).
+``Market.drops`` collection is the way DEX tracks participation of traders in given liquidity pool. Participation
+tracking is based on a fictional "liquidity" coin (separate for every market), and drops is a collection keeping the
+balance of liquidity coin per trader.
 
-Any trader can become a liquidity provider. The following DexFacade operations deal with liquidity management:
+The following DexFacade operations deal with liquidity management:
 
 .. code:: scala
 
@@ -206,10 +210,6 @@ Any trader can become a liquidity provider. The following DexFacade operations d
      //The trader will get proportional share of both coins of the liquidity pool.
      def withdrawLiquidity(account: AccountAddress, marketId: CoinPair, amountOfLiquidityCoinsToBurn: FPNumber): Boolean
    }
-
-Drops collection is the way DEX tracks participation of traders in given liquidity pool. Participation tracking is based
-on a fictional "liquidity" coin (separate for every market), and drops is a collection keeping the balance of liquidity
-coin per trader.
 
 ``InitAMM`` just allocates fixed amount of liquidity coins (100.0) as drops entry for the issuing trader.
 
@@ -236,6 +236,10 @@ Let:
 
 Caution: because of integer rounding, this equation usually cannot be satisfied exactly. DEX attempts to adhere
 to this equation as much as the fixed-point arithmetic allows to.
+
+
+Liquidity pool is the way we establish the concept of "current price" on the market: it is just the value
+``ammQuote / ammBase``.
 
 ``WithdrawLiquidity`` burns specified amount of liquidity tokens. Let :math:`ammBase` and :math:`ammQuote` denote
 current balance of the AMM for the relevant market. Let :math:`td` be the total number of liquidity tokens for this
