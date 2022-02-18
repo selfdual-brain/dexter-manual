@@ -48,29 +48,34 @@ limiting conditions are as follows:
 Motivation for above rules comes from various sources:
 
   - Rules #2 and #3 seem to be very natual and go along the general expectations of the wide public; any DEX violating
-    these rules would be really a weird one
-  - Rule #1 is completely arbitrary business-level decision made in Onomy; DEXes violating this rule are probably
+    these rules would be really a weird one.
+  - Rule #1 is a completely arbitrary business-level decision made in Onomy; DEXes violating this rule are probably
     quite useful and interesting, although it must be said that their trading mechanics would be even more distant
-    from Forex tradition; therefore the motivation behind #1 can be seen as "let's keep things mentally closer
-    to Forex community" (please notice that Dexter is all about simulating hybrid exchanges, so the analogy to Forex
-    is always around by the very nature of "hybrid" part)
+    from Forex tradition than the mechanics of those following #1. Therefore the motivation behind #1 can be seen as
+    "let's keep things mentally closer to Forex community for now" (please notice that Dexter is all about simulating
+    hybrid exchanges, so the analogy to Forex is going to be always around).
   - Rules #4, #5, #6 delineate the boundary of "simplest executors one can consider"; anything beyond this region
-    immediately becomes complex and sophisticated; from this perspective the mission of Dexter can be understood as
+    immediately becomes complex and sophisticated. From this perspective the mission of Dexter can be understood as
     "let's see how far we can get with those simplistic executors before we delve into sophisticated ones". A good
     motivation for cancelling #4 would be making a DEX where arbitrage is impossible. A good motivation for cancelling
-    #5 would be borrowing from Forex the idea of direct trader-to-trader swaps, i.e. bypassing the AMM if possible.
+    #5 would be borrowing from Forex the idea of direct trader-to-trader swaps, i.e. bypassing the AMM interaction
+    when possible.
 
 Executor loop overview
 ----------------------
 
-In the current version of Dexter we further limit our attention to a most "simplistic" (implementation-wise) space of
-executors. Namely, we expect these conditions to hold:
+Thanks to the rules enumerated in previous chapter, the job of an executor loop can be largely simplified and pinpointed
+as the following task:
 
- 4. **Funds locking** - sfsdf
+ 1. :math:`A` and :math:`B` are coins on the market under consideration. :math:`\langle A, B \rangle` is the market
+    where the last new order was added.
+ 2. Following the cascade of swaps triggered by adding the new order, we already executed :math:`k` iterations of
+    the executor loop, where :math:`k \geq 0`.
+ 3. Current AMM balances on the market :math:`\langle A, B \rangle` are :math:`\langle a:A, b:B \rangle`.
+ 4. We have 2 queues of limit orders on the market :math:`\langle A, B \rangle`:
+      - direction :math:`A \rigtharrow B`
+      - direction: :math:`B \rigtharrow A`
 
-Given these conditions, the job of executor loop can be pinpointed as the following task:
-
- 1. Given the current state of
 
 Common notation
 ---------------
