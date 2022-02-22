@@ -40,7 +40,7 @@ epub_show_urls = 'footnote'
 
 mathjax3_config = {
     'chtml' : {
-        'scale' : 0.8,
+        'scale' : 0.9,
     }
 }
 

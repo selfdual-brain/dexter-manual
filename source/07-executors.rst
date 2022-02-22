@@ -69,12 +69,16 @@ as the following task:
 
  1. :math:`A` and :math:`B` are coins on the market under consideration. :math:`\langle A, B \rangle` is the market
     where the last new order was added.
+
  2. Following the cascade of swaps triggered by adding the new order, we already executed :math:`k` iterations of
     the executor loop, where :math:`k \geq 0`.
+
  3. Current AMM balances on the market :math:`\langle A, B \rangle` are :math:`\langle a:A, b:B \rangle`.
+
  4. We have 2 queues of limit orders on the market :math:`\langle A, B \rangle`:
-      - direction :math:`A \rigtharrow B`
-      - direction: :math:`B \rigtharrow A`
+
+      - direction :math:`A \rightarrow B`
+      - direction: :math:`B \rightarrow A`
 
 
 Common notation
