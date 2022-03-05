@@ -638,6 +638,59 @@ The following sequence diagram illustrates the general algorithm of processing n
 **Executor loop** is the pluggable part of this algorithm. Current version of Dexter supports 3 executors (more can be added
 in the future). The next chapter is devoted to specify internals of all currently supported executors.
 
+Summary of "price" concepts across Dexter
+-----------------------------------------
+
+"Exchange rate" aka "price" seems to be a well known concept: if the price of bitcoin is 40 kUSD then I will need to
+pay 120 kUSD for 3 bitcoins. However, because of the symmetry, one could be interested in the dual point of view - the
+price of 1 dollar is 0.000025 bitcoin. Therefore we need to introduce **price direction**: for coins :math:`AAA` and
+:math:`BBB`, we say that price in direction :math:`AAA \rightarrow BBB` is the following fraction:
+
+.. math::
+
+    \frac{tokens AAA paid}{tokens BBB received}
+
+... where tokens paid and received corresponds to an imaginary, infinitely small swap to be executed.
+
+However, things get more complex when we apply this intuition to our DEX model and more generally to the inner working
+of Dexter. It turns our that there are 5 different concepts of "price" in Dexter. We enumerate all these concepts below.
+
+For keeping the notation coherent, we assume that we are talking about a market with two coins :math:`AAA`
+and :math:`BBB` and the price direction considered is :math:`AAA \rightarrow BBB`.
+
+**AMM price**
+  This is a market-level value. It reflects the official price as displayed for given market. It is derived from the
+  current balance of the liquidity pool attached to this market. The exact formula is:
+  :math:`\frac{balanceAAA}{balanceBBB}`.
+
+**Perceived price**
+  This is a market-level value. It reflects the price derived from the "external value" of coins. See chapter 8 for
+  a detailed explanation of the external value model.
+
+**Swap price**
+  This is a swap-level value. Every swap represents an "atomic" exchange of tokens. As a swap means an already
+  executed conversion of tokens, we know the amounts obtained and sold. The way swap price is calculated of course
+  depends on the direction of the order, which the swap belongs to.  For example for an order with direction
+  :math:`AAA \rightarrow BBB`, the price in direction :math:`AAA \rightarrow BBB` is calculated as
+  :math:`\frac{tokens AAA sold}{tokens BBB obtained}.
+
+**Achieved price**
+  This is an order-level value. It corresponds to the average price achieved so far in the history of execution of
+  given order. The way achieved price is calculated depends on the direction of the order vs the direction of the price.
+  As we want tho calculate the price in direction  :math:`AAA \rightarrow BBB`, this works as follows:
+. for an order with direction :math:`AAA \rightarrow BBB` achieved price is
+  :math:`\frac{tokens AAA sold so far}{tokens BBB obtained so far}. For an order with direction :math:`BBB \rightarrow AAA`
+  (so, opposite to price direction) achieved price is :math:`\frac{tokens AAA obtained so far}{tokens BBB sold so far} /geq LP`.
+
+**Limit price**
+  This is an order-level value. On creating an order, a trader defines the worst price he is willing to accept for
+  executing given order. During the whole lifetime of an order :math:`P`:, the following condition must
+  hold: :math:`AP(P) <= LP(P)`, where :math:`AP(P)` is the achieved price for :math:`P` calculated in the same direction
+  as the direction of :math:`P`, and :math:`LP(P)` is same-direction limit price for :math:`P`.
+
+
+
+
 
 
 
