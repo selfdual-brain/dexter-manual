@@ -648,20 +648,19 @@ price of 1 dollar is 0.000025 bitcoin. Therefore we need to introduce **price di
 
 .. math::
 
-    \frac{tokens AAA paid}{tokens BBB received}
+    \frac{tokens \: AAA \: paid}{tokens \: BBB \: received}
 
 ... where tokens paid and received corresponds to an imaginary, infinitely small swap to be executed.
 
 However, things get more complex when we apply this intuition to our DEX model and more generally to the inner working
 of Dexter. It turns our that there are 5 different concepts of "price" in Dexter. We enumerate all these concepts below.
-
 For keeping the notation coherent, we assume that we are talking about a market with two coins :math:`AAA`
 and :math:`BBB` and the price direction considered is :math:`AAA \rightarrow BBB`.
 
 **AMM price**
   This is a market-level value. It reflects the official price as displayed for given market. It is derived from the
   current balance of the liquidity pool attached to this market. The exact formula is:
-  :math:`\frac{balanceAAA}{balanceBBB}`.
+  :math:`\frac{market.balance(AAA)}{market.balance(BBB)}`.
 
 **Perceived price**
   This is a market-level value. It reflects the price derived from the "external value" of coins. See chapter 8 for
@@ -675,16 +674,16 @@ and :math:`BBB` and the price direction considered is :math:`AAA \rightarrow BBB
   :math:`\frac{tokens AAA sold}{tokens BBB obtained}.
 
 **Achieved price**
-  This is an order-level value. It corresponds to the average price achieved so far in the history of execution of
-  given order. The way achieved price is calculated depends on the direction of the order vs the direction of the price.
-  As we want tho calculate the price in direction  :math:`AAA \rightarrow BBB`, this works as follows:
-. for an order with direction :math:`AAA \rightarrow BBB` achieved price is
-  :math:`\frac{tokens AAA sold so far}{tokens BBB obtained so far}. For an order with direction :math:`BBB \rightarrow AAA`
-  (so, opposite to price direction) achieved price is :math:`\frac{tokens AAA obtained so far}{tokens BBB sold so far} /geq LP`.
+  This is an position-level value. It corresponds to the average price achieved so far in the history of execution of
+  given position. The way achieved price is calculated depends on the direction of the position vs the direction of the price.
+  As we want to calculate the price in direction :math:`AAA \rightarrow BBB`, this works as follows:
+.
+  - for a position :math:`p` with direction :math:`AAA \rightarrow BBB`, achieved price defined as :math:`\frac{p.soldSoFar}{p.boughtSoFar}`.
+  - for a position :math:`p` with direction :math:`BBB \rightarrow AAA`, achieved price defined as :math:`\frac{p.boughtSoFar}{p.soldSoFar}`.
 
 **Limit price**
   This is an order-level value. On creating an order, a trader defines the worst price he is willing to accept for
-  executing given order. During the whole lifetime of an order :math:`P`:, the following condition must
+  executing given order. During the whole lifetime of a position :math:`p` based on an order , the following condition must
   hold: :math:`AP(P) <= LP(P)`, where :math:`AP(P)` is the achieved price for :math:`P` calculated in the same direction
   as the direction of :math:`P`, and :math:`LP(P)` is same-direction limit price for :math:`P`.
 

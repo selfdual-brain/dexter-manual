@@ -106,6 +106,8 @@ Variant 1: TEAL executor
 
 This executor is based on a proprietary algorithm created in Onomy Protocol.
 
+Step 5.A is easy: the loop has always one iteration only.
+
 
 Variant 2: TURQUOISE executor
 -----------------------------
