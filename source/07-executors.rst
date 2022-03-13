@@ -71,8 +71,8 @@ Motivation for above rules comes from various sources:
 Executor loop overview
 ----------------------
 
-Thanks to the rules enumerated in previous chapter, the job of an executor loop can be largely simplified and described
-as follows:
+Thanks to the rules enumerated in previous chapter, the job of an executor loop can be largely simplified. For
+describing the internals of the executor we assume the following context:
 
  1. :math:`A` and :math:`B` are coins on the market under consideration. :math:`\langle A, B \rangle` is the market
     where the last new order was added.
