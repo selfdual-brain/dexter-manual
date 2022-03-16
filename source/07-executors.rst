@@ -73,7 +73,7 @@ Executor loop overview
 
 Because we assume **Rule #2: Isolation of markets**, once a new order arrives to the DEX, we are going to process
 the order book only for the market where the new order belongs. Let us fix the coins to be :math:`AAA` and :math:`BBB`,
-so the market is :math:`AAA \rightarrow BBB` and orders have direction :math:`AAA \rightarrow BBB` or
+so the market is :math:`AAA/BBB` and orders have direction :math:`AAA \rightarrow BBB` or
 :math:`BBB \rightarrow AAA`. We will further refer to this market as ``market`` (see the scripts below).
 
 Thanks to the rules enumerated in previous chapter, the job of an executor loop can be largely simplified. Let us
@@ -167,20 +167,127 @@ We terminate unconditionally. This means that the executor loop has always only 
 Variant 2: TURQUOISE executor
 -----------------------------
 
-This executor is based on an idea that we execute orders always using the limit price as declared in the order itself.
+This executor is based on an idea that we execute orders always using the limit price as declared in the order itself,
+as long as the AMM-price allows to do so without sponsoring the trader. There is no trading fee, instead the DEX
+makes money on the difference between AMM price vs limit price.
+
+The executor loop has fixed number of iterations - defined by "hamster constant". At every iteration, the half market
+selection is based on picking the one with bigger overhang.
+
+On top of that we take care about keeping the swap amounts about the integer rounding margin (provided as a parameter)
+so to avoid nasty corner cases caused by integer rounding.
 
 1. Half-market selection
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-We select the same half-market where ``p`` belongs:
+For clarity, the algorithm below is expressed using the normalized view of the market.
 
 .. code:: text
 
-  val selectedHalfMarket = p.halfMarket
+  private var flipper: Boolean = false
+
+  private def limitBooksNextExecDecision(market: Market): Decision = {
+    if (market.limitOrderBookAsks.isEmpty && market.limitOrderBookBids.isEmpty)
+      return Decision.NONE
+
+    if (market.limitOrderBookBids.isEmpty)
+      return Decision.ASK
+
+    if (market.limitOrderBookAsks.isEmpty)
+      return Decision.BID
+
+    val topBid: Fraction = market.limitOrderBookBids.head.normalizedLimitPrice
+    val bottomAsk: Fraction = market.limitOrderBookAsks.head.normalizedLimitPrice
+    val ammPrice: Fraction = market.currentPriceNormalized
+
+    if (topBid <= ammPrice && ammPrice <= bottomAsk)
+      return Decision.NONE
+
+    if (bottomAsk < ammPrice && topBid <= ammPrice)
+      return Decision.ASK
+
+    if (topBid > ammPrice && bottomAsk >= ammPrice)
+      return Decision.BID
+
+    val bidOverhang = topBid - ammPrice
+    val askOverHang = ammPrice - bottomAsk
+
+    if (bidOverhang > askOverHang)
+      return Decision.BID
+
+    if (bidOverhang < askOverHang)
+      return Decision.ASK
+
+    //they are equal, so we pick one pointed by the flipper
+    flipper = ! flipper
+    flipper match {
+      case true => return Decision.BID
+      case false => return Decision.ASK
+    }
+  }
 
 
 2: Swap amounts
 ^^^^^^^^^^^^^^^
+
+**Math derivation**
+
+We consider an execution of some limit order :math:`BBB \rightarrow AAA`, i.e. where BBB is the bid coin and AAA is the ask
+coin. In effect of the execution, :math:`x:AAA` will be received from AMM and :math:`y:BBB` will be given to AMM. After
+the execution, the new state of the AMM will be:
+
+.. math::
+
+    a-x: AAA, b+y: BBB
+
+An order contains a declared limit price :math:`r`. The execution of an order is only allowed when :math:`ammprice \geq r`.
+
+Additionally, we want to keep the constant conversion rate for every order and we want it to be equal to the declared
+limit price. In other words we want the following condition to hold:
+
+.. math::
+
+    \frac{x}{y}=r
+
+Let's assume that we have an order for which the condition :math:`ammprice \geq r` is true. We want to find the maximal
+amount of swap which is possible.
+
+For the maximal swap, the inequality will turn into equality, hence we will have:
+
+.. math::
+
+    ammprice = r
+
+
+The ammprice after successful execution of the order will be:
+
+.. math::
+
+    ammprice = \frac{a-x}{b+y}
+
+Effectively, we arrive to the following system of equations (where :math:`x` and :math:`y` are unknown):
+
+.. math::
+
+    \begin{cases}
+    \dfrac{a-x}{b+y}=r\\
+    \dfrac{x}{y}=r
+    \end{cases}
+
+Solving this leads to:
+
+.. math::
+
+    \begin{cases}
+    x=\dfrac{a-br}{2}\\
+    y=\dfrac{a-br}{2r}
+    \end{cases}
+
+**Pseudo-code**
+
+sfsd
+
+
 
 
 3: Executor loop termination
