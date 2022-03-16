@@ -71,77 +71,128 @@ Motivation for above rules comes from various sources:
 Executor loop overview
 ----------------------
 
-Thanks to the rules enumerated in previous chapter, the job of an executor loop can be largely simplified. For
-describing the internals of the executor we assume the following context:
+Because we assume **Rule #2: Isolation of markets**, once a new order arrives to the DEX, we are going to process
+the order book only for the market where the new order belongs. Let us fix the coins to be :math:`AAA` and :math:`BBB`,
+so the market is :math:`AAA \rightarrow BBB` and orders have direction :math:`AAA \rightarrow BBB` or
+:math:`BBB \rightarrow AAA`. We will further refer to this market as ``market`` (see the scripts below).
 
- 1. :math:`A` and :math:`B` are coins on the market under consideration. :math:`\langle A, B \rangle` is the market
-    where the last new order was added.
+Thanks to the rules enumerated in previous chapter, the job of an executor loop can be largely simplified. Let us
+outline the template of such loop by extending the activity diagram in from previous chapter:
 
- 2. Following the cascade of swaps triggered by adding the new order, we already executed :math:`k` iterations of
-    the executor loop, where :math:`k \geq 0`.
+.. image:: pictures/07/executor-loop.png
+    :width: 100%
+    :align: center
 
- 3. Current AMM balances on the market :math:`\langle A, B \rangle` are :math:`\langle a:A, b:B \rangle`.
+Places marked above with red asterisk are where non-trivial logic must be plugged-in:
 
- 4. We have 2 queues of limit orders on the market :math:`\langle A, B \rangle`:
+**1: Half-market selection**
+  At this point, one of two half-markets must be picked. This is equivalent to selecting a direction: :math:`AAA \rightarrow BBB`
+  or :math:`BBB \rightarrow AAA`. In the context of "oriented" market, this means selecting "asks" or "bids" side
+  of the order book.
 
-      - orders with direction :math:`A \rightarrow B`
-      - orders with direction: :math:`B \rightarrow A`
+**2: Swap preconditions**
+  At this point swap preconditions are checked. Red light will abort swap creation and terminate the executor loop.
 
- 5. Follow this sequence:
+**3: Swap amounts**
+  Deciding on amounts of the next swap to be executed. Because of **Rule #5: Natural trading priority**, the next swap
+  to be executed must relate to the position at the head of the positions list (because the positions list is ordered
+  by price-then-order-time.
 
-      - **[A]** Should we stop the stop the loop or continue ?
-      - If continue: pick the queue
-      - Let :math:`p` be the position at the head of picked queue
-      - **[B]** Pick two numbers defining the swap to be made in the context of position :math:`p`: :math:`x` and :math:`y`,
-        where :math:`x` will be the "sold" amount and :math:`y` will be the "bought" amount of the resulting swap.
-      - create the swap
+**4: Executor loop termination**
+  Deciding if the executor loop should continue or exit.
 
- 6. Run another iterator of step 5.
-
-Variants of executor implementation we discuss below are specified by providing the logic to be applied in steps
-5.A and 5.B.
+In the algorithms of the executor loop we outline below, ``pos`` is the just-added position. We follow attributes
+and methods as defined in the UML model.
 
 Variant 1: TEAL executor
 ------------------------
 
-This executor is based on a proprietary algorithm created in Onomy Protocol.
+This executor is based on a proprietary algorithm created in Onomy Protocol. This executor follows this TLA+
+specification:
 
-Step 5.A is easy: the loop has always one iteration only.
+https://github.com/onomyprotocol/specs/
+
+1. Half-market selection
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+We select the same half-market where ``pos`` belongs:
+
+.. code:: scala
+
+  val selectedHalfMarket = pos.halfMarket
+
+2: Swap preconditions
+^^^^^^^^^^^^^^^^^^^^^
+
+.. code:: scala
+
+    val limitHead: Position = selectedHalfMarket.limitBook.head
+    val r: Fraction = limitHead.exchangeRate
+    val a: FPNumber = market.ammBalanceOf(limitHead.order.askCoin)
+    val b: FPNumber = market.ammBalanceOf(limitHead.order.bidCoin)
+    val ammPrice: Fraction = Fraction(a, b)
+
+    if (ammPrice <= r)
+      return RED_LIGHT
+    else {
+      val maxBidAmt: FPNumber = (a - b * r) * ((r + 1).reciprocal)
+      val strikeBidAmt: FPNumber = FPNumber.min(limitHead.outstandingAmount, maxBidAmt)
+      val strikeAskAmt: FPNumber = strikeBidAmt * r
+      if (strikeBidAmt > 0 && strikeAskAmt > 0)
+        return GREEN_LIGHT
+      else
+        return RED_LIGHT
+    }
+
+3: Swap amounts
+^^^^^^^^^^^^^^^
+
+.. code:: scala
+
+    val limitHead: Position = selectedHalfMarket.limitBook.head
+    val r: Fraction = limitHead.exchangeRate
+    val a: FPNumber = market.ammBalanceOf(limitHead.order.askCoin)
+    val b: FPNumber = market.ammBalanceOf(limitHead.order.bidCoin)
+    val ammPrice: Fraction = Fraction(a, b)
+    val maxBidAmt: FPNumber = (a - b * r) * ((r + 1).reciprocal)
+    val x: FPNumber = FPNumber.min(limitHead.outstandingAmount, maxBidAmt)
+    val y: FPNumber = x * r
+
+4: Executor loop termination
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+We terminate unconditionally. This means that the executor loop has always only one iteration.
 
 
 Variant 2: TURQUOISE executor
 -----------------------------
 
-TURQUOISE executor does not support stop orders, hence the market state is composed of:
+This executor is based on an idea that we execute orders always using the limit price as declared in the order itself.
 
- - limit orders on the ASK side (sellers)
- - limit orders on the BIS side (buyers)
- - two liquidity pool balances (one balance for each coin)
+1. Half-market selection
+^^^^^^^^^^^^^^^^^^^^^^^^
 
-Basic idea of the algorithm
-^^^^^^^^^^^^^^^^^^^^^^^^^^^
+We select the same half-market where ``p`` belongs:
 
+.. code:: text
 
-
-
-Mathematics
-^^^^^^^^^^^
-
-We will now derive the mathematical formulas to
-
-The main idea of the algorithm is to execute every swap using the limit price declared in the order. This in contrary
-to a FOREX-style exchanges, where every swap is executed using the current market price. While executing swaps this way,
-the limiting factor is the "real" price, which we establish as :math:`\frac{a}{b}`, where :math:`A` and :math:`B`
+  val selectedHalfMarket = p.halfMarket
 
 
+2: Swap amounts
+^^^^^^^^^^^^^^^
 
+
+3: Executor loop termination
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+We terminate unconditionally. This means that the executor loop has always only one iteration.
 
 
 Variant 3: UNISWAP_HYBRID executor
 ----------------------------------
 
 
-f
 
 
 Complications caused by finite precision
