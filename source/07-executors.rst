@@ -101,8 +101,45 @@ Places marked above with red asterisk are where non-trivial logic must be plugge
 **4: Executor loop termination**
   Deciding if the executor loop should continue or exit.
 
-In the algorithms of the executor loop we outline below, ``pos`` is the just-added position. We follow attributes
+In the algorithms of the executor loop we outline below, ``pos`` is the just-added position. While defining a new swap,
+``x`` is the amount of tokens received from AMM and ``y`` is the amount of tokens given to AMM.
+
+We follow attributes
 and methods as defined in the UML model.
+
+Arithmetic precision problems and their solution
+------------------------------------------------
+
+Internal working of the executor is vulnerable to "strange" effects caused by imperfectness of computer arithmetic.
+This effects generally disrupt the operation of mathematical definitions of the executor. Two particular problems are:
+
+  1. When (at least one side of) the AMM balance becomes small enough, integer rounding effects can cause significant
+     errors in calculated swap amounts.
+
+  2. When calculated swap amounts are small enough, integer rounding may cause limit-price invariant to fail.
+
+To avoid such anomalies we generally apply a simple approach:
+
+  1. Enforce that AMM balances are always above certain AMM_MIN_BALANCE (which is a parameter).
+
+  2. Enforce that order amount is always above certain TRADING_MIN_AMOUNT (which is a parameter).
+
+  3. Enforce that swap amounts are always above certain SWAP_MIN_AMOUNT (which is a parameter).
+
+To work as expected, above parameters must be set accordingly to the arithmetic precision used by the implementation
+of DEX. Please notice that arithmetic precision is also limited in the fixed-point arithmetic - because of the
+necessary rounding in operations such as multiplication.
+
+For example if the arithmetic precision is at the order 1e-18, then "reasonable" values for above params could be:
+
+  - AMM_MIN_BALANCE = 1e-14
+
+  - TRADING_MIN_AMOUNT = 1e-8
+
+  - SWAP_MIN_AMOUNT = 1e-10
+
+For clarity of executor algorithms - as exposed in this chapter - all checks related to above conditions are not
+included in the pseudo-code.
 
 Variant 1: TEAL executor
 ------------------------
@@ -111,6 +148,9 @@ This executor is based on a proprietary algorithm created in Onomy Protocol. Thi
 specification:
 
 https://github.com/onomyprotocol/specs/
+
+On top of the specification we apply the "minimal trading balance" check on the AMM level. We just do not allow
+either size of the liquidity pool to
 
 1. Half-market selection
 ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -125,6 +165,9 @@ We select the same half-market where ``pos`` belongs:
 ^^^^^^^^^^^^^^^^^^^^^
 
 .. code:: scala
+
+    if (selectedHalfMarket.limitBook.isEmpty)
+        return RED_LIGHT
 
     val limitHead: Position = selectedHalfMarket.limitBook.head
     val r: Fraction = limitHead.exchangeRate
@@ -155,8 +198,8 @@ We select the same half-market where ``pos`` belongs:
     val b: FPNumber = market.ammBalanceOf(limitHead.order.bidCoin)
     val ammPrice: Fraction = Fraction(a, b)
     val maxBidAmt: FPNumber = (a - b * r) * ((r + 1).reciprocal)
-    val x: FPNumber = FPNumber.min(limitHead.outstandingAmount, maxBidAmt)
-    val y: FPNumber = x * r
+    val y: FPNumber = FPNumber.min(limitHead.outstandingAmount, maxBidAmt)
+    val x: FPNumber = y * r
 
 4: Executor loop termination
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -177,12 +220,63 @@ selection is based on picking the one with bigger overhang.
 On top of that we take care about keeping the swap amounts about the integer rounding margin (provided as a parameter)
 so to avoid nasty corner cases caused by integer rounding.
 
+Math derivation
+^^^^^^^^^^^^^^^
+
+We consider an execution of some limit order :math:`BBB \rightarrow AAA`, i.e. where BBB is the bid coin and AAA is the ask
+coin. In effect of the execution, :math:`x:AAA` will be received from AMM and :math:`y:BBB` will be given to AMM. After
+the execution, the new state of the AMM will be:
+
+.. math::
+
+    a-x: AAA, b+y: BBB
+
+An order contains a declared limit price :math:`r`. The execution of an order is only allowed when :math:`ammprice \geq r`.
+
+Additionally, we want to keep the constant conversion rate for every order and we want it to be equal to the declared
+limit price. In other words we want the following condition to hold:
+
+.. math::
+
+    \frac{x}{y}=r
+
+Let's assume that we have an order for which the condition :math:`ammprice \geq r` is true. We want to find the maximal
+amount of swap which is possible.
+
+For the maximal swap, the inequality will turn into equality, hence we will have:
+
+.. math::
+
+    ammprice = r
+
+The ammprice after successful execution of the order will be:
+
+.. math::
+
+    ammprice = \frac{a-x}{b+y}
+
+Effectively, we arrive to the following system of equations (where :math:`x` and :math:`y` are unknown):
+
+.. math::
+
+    \begin{cases}
+    \dfrac{a-x}{b+y}=r\\
+    \dfrac{x}{y}=r
+    \end{cases}
+
+Solving this leads to:
+
+.. math::
+
+    \begin{cases}
+    x=\dfrac{a-br}{2}\\
+    y=\dfrac{a-br}{2r}
+    \end{cases}
+
 1. Half-market selection
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-For clarity, the algorithm below is expressed using the normalized view of the market.
-
-.. code:: text
+.. code:: scala
 
   private var flipper: Boolean = false
 
@@ -227,65 +321,33 @@ For clarity, the algorithm below is expressed using the normalized view of the m
   }
 
 
-2: Swap amounts
-^^^^^^^^^^^^^^^
+2: Swap preconditions
+^^^^^^^^^^^^^^^^^^^^^
 
-**Math derivation**
+.. code:: scala
 
-We consider an execution of some limit order :math:`BBB \rightarrow AAA`, i.e. where BBB is the bid coin and AAA is the ask
-coin. In effect of the execution, :math:`x:AAA` will be received from AMM and :math:`y:BBB` will be given to AMM. After
-the execution, the new state of the AMM will be:
+    lazy val limitHead: Position = limitBook.head
+    val a: BigInt = halfMarketBA.poolBalance.pips
+    val b: BigInt = halfMarketAB.poolBalance.pips
+    val r: Fraction = limitHead.exchangeRate
+    val x: BigInt = r.numerator
+    val y: BigInt = r.denominator
 
-.. math::
+    val ammPrice: Fraction = market.currentPriceDirected(askCoin, bidCoin)
 
-    a-x: AAA, b+y: BBB
+    if (ammPrice <= r)
+      return false
 
-An order contains a declared limit price :math:`r`. The execution of an order is only allowed when :math:`ammprice \geq r`.
+    val maxBidAmt: FPNumber = FPNumber((a * y - b * x) / (2 * x))
+    val maxAmountOfBidCoinThatWillNotDrainAmmBelowMargin: FPNumber = (market.ammBalanceOf(askCoin) -  ammMinBalance) ** r.reciprocal
+    val strikeBidAmt: FPNumber = FPNumber.min(FPNumber.min(limitHead.amount, maxBidAmt), maxAmountOfBidCoinThatWillNotDrainAmmBelowMargin)
+    val strikeAskAmt: FPNumber = strikeBidAmt ** r
 
-Additionally, we want to keep the constant conversion rate for every order and we want it to be equal to the declared
-limit price. In other words we want the following condition to hold:
+    if (strikeBidAmt <= integerRoundingMargin || strikeAskAmt <= integerRoundingMargin)
+      if (limitHead.amount > integerRoundingMargin)
+        return false
 
-.. math::
-
-    \frac{x}{y}=r
-
-Let's assume that we have an order for which the condition :math:`ammprice \geq r` is true. We want to find the maximal
-amount of swap which is possible.
-
-For the maximal swap, the inequality will turn into equality, hence we will have:
-
-.. math::
-
-    ammprice = r
-
-
-The ammprice after successful execution of the order will be:
-
-.. math::
-
-    ammprice = \frac{a-x}{b+y}
-
-Effectively, we arrive to the following system of equations (where :math:`x` and :math:`y` are unknown):
-
-.. math::
-
-    \begin{cases}
-    \dfrac{a-x}{b+y}=r\\
-    \dfrac{x}{y}=r
-    \end{cases}
-
-Solving this leads to:
-
-.. math::
-
-    \begin{cases}
-    x=\dfrac{a-br}{2}\\
-    y=\dfrac{a-br}{2r}
-    \end{cases}
-
-**Pseudo-code**
-
-sfsd
+    if (strikeBidAmt > FPNumber.zero && strikeAskAmt > FPNumber.zero) {
 
 
 
