@@ -159,7 +159,9 @@ We select the same half-market where ``pos`` belongs:
 
 .. code:: scala
 
-  val selectedHalfMarket = pos.halfMarket
+    private def limitBooksNextExecDecision(market: Market): Option[MarketSide] = {
+        return pos.normalizedMarketSide
+    }
 
 2: Swap preconditions
 ^^^^^^^^^^^^^^^^^^^^^
@@ -206,19 +208,15 @@ We select the same half-market where ``pos`` belongs:
 
 We terminate unconditionally. This means that the executor loop has always only one iteration.
 
-
 Variant 2: TURQUOISE executor
 -----------------------------
 
-This executor is based on an idea that we execute orders always using the limit price as declared in the order itself,
-as long as the AMM-price allows to do so without sponsoring the trader. There is no trading fee, instead the DEX
+This executor is based on the idea that we execute orders always using the limit price as declared in the order itself
+- as long as the AMM-price allows to do so without sponsoring the trader. There is no trading fee, instead the DEX
 makes money on the difference between AMM price vs limit price.
 
 The executor loop has fixed number of iterations - defined by "hamster constant". At every iteration, the half market
 selection is based on picking the one with bigger overhang.
-
-On top of that we take care about keeping the swap amounts about the integer rounding margin (provided as a parameter)
-so to avoid nasty corner cases caused by integer rounding.
 
 Math derivation
 ^^^^^^^^^^^^^^^
@@ -280,46 +278,45 @@ Solving this leads to:
 
   private var flipper: Boolean = false
 
-  private def limitBooksNextExecDecision(market: Market): Decision = {
+  private def limitBooksNextExecDecision(market: Market): Option[MarketSide] = {
     if (market.limitOrderBookAsks.isEmpty && market.limitOrderBookBids.isEmpty)
-      return Decision.NONE
+      return None
 
     if (market.limitOrderBookBids.isEmpty)
-      return Decision.ASK
+      return Some(MarketSide.Asks)
 
     if (market.limitOrderBookAsks.isEmpty)
-      return Decision.BID
+      return Some(MarketSide.Bids)
 
     val topBid: Fraction = market.limitOrderBookBids.head.normalizedLimitPrice
     val bottomAsk: Fraction = market.limitOrderBookAsks.head.normalizedLimitPrice
     val ammPrice: Fraction = market.currentPriceNormalized
 
     if (topBid <= ammPrice && ammPrice <= bottomAsk)
-      return Decision.NONE
+      return None
 
     if (bottomAsk < ammPrice && topBid <= ammPrice)
-      return Decision.ASK
+      return Some(MarketSide.Asks)
 
     if (topBid > ammPrice && bottomAsk >= ammPrice)
-      return Decision.BID
+      return Some(MarketSide.Bids)
 
     val bidOverhang = topBid - ammPrice
     val askOverHang = ammPrice - bottomAsk
 
     if (bidOverhang > askOverHang)
-      return Decision.BID
+      return Some(MarketSide.Bids)
 
     if (bidOverhang < askOverHang)
-      return Decision.ASK
+      return Some(MarketSide.Asks)
 
     //they are equal, so we pick one pointed by the flipper
     flipper = ! flipper
     flipper match {
-      case true => return Decision.BID
-      case false => return Decision.ASK
+      case true => return Some(MarketSide.Bids)
+      case false => return Some(MarketSide.Asks)
     }
   }
-
 
 2: Swap preconditions
 ^^^^^^^^^^^^^^^^^^^^^
@@ -336,23 +333,45 @@ Solving this leads to:
     val ammPrice: Fraction = market.currentPriceDirected(askCoin, bidCoin)
 
     if (ammPrice <= r)
-      return false
+      return RED_LIGHT
 
     val maxBidAmt: FPNumber = FPNumber((a * y - b * x) / (2 * x))
     val maxAmountOfBidCoinThatWillNotDrainAmmBelowMargin: FPNumber = (market.ammBalanceOf(askCoin) -  ammMinBalance) ** r.reciprocal
     val strikeBidAmt: FPNumber = FPNumber.min(FPNumber.min(limitHead.amount, maxBidAmt), maxAmountOfBidCoinThatWillNotDrainAmmBelowMargin)
     val strikeAskAmt: FPNumber = strikeBidAmt ** r
 
-    if (strikeBidAmt <= integerRoundingMargin || strikeAskAmt <= integerRoundingMargin)
-      if (limitHead.amount > integerRoundingMargin)
-        return false
+    if (strikeBidAmt > FPNumber.zero && strikeAskAmt > FPNumber.zero)
+      return GREEN_LIGHT
+    else
+      return RED_LIGHT
 
-    if (strikeBidAmt > FPNumber.zero && strikeAskAmt > FPNumber.zero) {
+3: Swap amounts
+^^^^^^^^^^^^^^^
+
+.. code:: scala
+
+    lazy val limitHead: Position = limitBook.head
+    val a: BigInt = halfMarketBA.poolBalance.pips
+    val b: BigInt = halfMarketAB.poolBalance.pips
+    val r: Fraction = limitHead.exchangeRate
+    val x: BigInt = r.numerator
+    val y: BigInt = r.denominator
+
+    val ammPrice: Fraction = market.currentPriceDirected(askCoin, bidCoin)
+
+    if (ammPrice <= r)
+      return RED_LIGHT
+
+    val maxBidAmt: FPNumber = FPNumber((a * y - b * x) / (2 * x))
+    val maxAmountOfBidCoinThatWillNotDrainAmmBelowMargin: FPNumber = (market.ammBalanceOf(askCoin) -  ammMinBalance) * r.reciprocal
+    val strikeBidAmt: FPNumber = FPNumber.min(FPNumber.min(limitHead.amount, maxBidAmt), maxAmountOfBidCoinThatWillNotDrainAmmBelowMargin)
+    val strikeAskAmt: FPNumber = strikeBidAmt * r
+
+    val y: FPNumber = FPNumber.min(limitHead.outstandingAmount, maxBidAmt)
+    val x: FPNumber = y * r
 
 
-
-
-3: Executor loop termination
+4: Executor loop termination
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 We terminate unconditionally. This means that the executor loop has always only one iteration.
