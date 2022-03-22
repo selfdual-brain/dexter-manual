@@ -36,144 +36,231 @@ The signature of ``FPNumber`` class is as follows:
 
 .. code:: scala
 
-case class FPNumber(pips: BigInt) extends Ordered[FPNumber] {
+    case class FPNumber(pips: BigInt) extends Ordered[FPNumber] {
 
-  /** Sum of two numbers.*/
-  def +(amount: FPNumber): FPNumber
+      /** Sum of two numbers.*/
+      def +(amount: FPNumber): FPNumber
 
-  /** Difference of two numbers.*/
-  def -(amount: FPNumber): FPNumber
+      /** Difference of two numbers.*/
+      def -(amount: FPNumber): FPNumber
 
-  /** x ---> -x */
-  def negated: FPNumber
+      /** x ---> -x */
+      def negated: FPNumber
 
-  /** Returns -1 for negative values, 1 for positive values, 0 for zero.*/
-  def signum: Int
+      /** Returns -1 for negative values, 1 for positive values, 0 for zero.*/
+      def signum: Int
 
-  /**
-   * Shifts the decimal point given number of places (left or right).
-   * @param p number of decimal places (positive = shift right, negative = shift left)
-   */
-  def decimalShift(p: Int): FPNumber
+      /**
+       * Shifts the decimal point given number of places (left or right).
+       * @param p number of decimal places (positive = shift right, negative = shift left)
+       */
+      def decimalShift(p: Int): FPNumber
 
-  /**
-   * Fixed-point multiplication.
-   * Caution: rounding can occur here.
-   */
-  def *(other: FPNumber): FPNumber
+      /**
+       * Fixed-point multiplication.
+       * Caution: rounding can occur here.
+       */
+      def *(other: FPNumber): FPNumber
 
-  /**
-   * Fixed-point division.
-   * Caution: rounding can occur here.
-   */
-  def /(other: FPNumber): FPNumber
+      /**
+       * Fixed-point division.
+       * Caution: rounding can occur here.
+       */
+      def /(other: FPNumber): FPNumber
 
-  /** x ---> 1/x */
-  def reciprocal: FPNumber
+      /** x ---> 1/x */
+      def reciprocal: FPNumber
 
-  /**
-  * Multiplication by a fraction.
-  * Caution: rounding can occur here.
-  */
-  def **(fraction: Fraction): FPNumber
+      /**
+      * Multiplication by a fraction.
+      * Caution: rounding can occur here.
+      */
+      def **(fraction: Fraction): FPNumber
 
-  /**
-   * Conversion to floating-point arithmetic.
-   * Caution: this is precision-losing operation.
-   */
-  def toDouble: Double
+      /**
+       * Conversion to floating-point arithmetic.
+       * Caution: this is precision-losing operation.
+       */
+      def toDouble: Double
 
-  /**
-   * Conversion to Fraction.
-   * This is a precise conversion, as Fraction has unlimited precision.
-   */
-  def toFraction: Fraction
+      /**
+       * Conversion to Fraction.
+       * This is a precise conversion, as Fraction has unlimited precision.
+       */
+      def toFraction: Fraction
 
-  /** Rounding towards positive infinity.*/
-  def ceiling: BigInt
+      /** Rounding towards positive infinity.*/
+      def ceiling: BigInt
 
-  /** Rounding towards negative infinity. */
-  def floor: BigInt
+      /** Rounding towards negative infinity. */
+      def floor: BigInt
 
-  /** Returns fractional part of the value, ignoring sign.*/
-  def unsignedFractionalPart: FPNumber
+      /** Returns fractional part of the value, ignoring sign.*/
+      def unsignedFractionalPart: FPNumber
 
-  /**
-   * Rounding towards zero.
-   * This is just cutting away the fractional part of this value.
-   */
-  def roundTowardsZero: BigInt
+      /**
+       * Rounding towards zero.
+       * This is just cutting away the fractional part of this value.
+       */
+      def roundTowardsZero: BigInt
 
-  /** Rounding away from zero.*/
-  def roundAwayFromZero: BigInt
+      /** Rounding away from zero.*/
+      def roundAwayFromZero: BigInt
 
-  /** Mathematical ordering.*/
-  override def compare(that: FPNumber): Int
+      /** Mathematical ordering.*/
+      override def compare(that: FPNumber): Int
 
-  /** Standard distance between numbers.*/
-  def distanceTo(that: FPNumber): FPNumber
-}
+      /** Standard distance between numbers.*/
+      def distanceTo(that: FPNumber): FPNumber
+    }
 
 Additionally, there are some class-level functions associated with ``FPNumber``:
 
 .. code:: scala
 
-  private def power(n: Long, k: Int): BigInt = {
-    val b: BigInt = BigInt(n)
-    (1 to k).map(x => b).product
-  }
+    object FPNumber {
 
-  val SCALING_FACTOR: BigInt = power(10, FIXED_POINT_ARITHMETIC_PRECISION)
-  val SCALING_FACTOR_BIG_DECIMAL: BigDecimal = BigDecimal(SCALING_FACTOR)
-  val SCALING_FACTOR_DOUBLE: Double = SCALING_FACTOR.toDouble
+      /** n to the power of k */
+      private def power(n: Long, k: Int): BigInt
 
-  val fractionalPartPaddingString: String = "0" * FIXED_POINT_ARITHMETIC_PRECISION
+      /** Shortcut for FPNumber.fromLong(0).*/
+      val zero: FPNumber
 
-  val zero: FPNumber = FPNumber(0)
-  val half: FPNumber = FPNumber(SCALING_FACTOR / 2)
-  val one: FPNumber = FPNumber(SCALING_FACTOR)
+      /** Shortcut for FPNumber.fromFraction(Fraction(1,2)).*/
+      val half: FPNumber
 
+      /** Shortcut for FPNumber.fromLong(1).*/
+      val one: FPNumber
 
-  def parse(s: String): FPNumber = fromBigDecimal(BigDecimal(s))
+      /** Conversion String ---> FPNumber.*/
+      def parse(s: String): FPNumber
 
-  /**
-   * Conversion Long ---> CoinAmount.
-   * For example, when precision is set to 5:
-   * fromLong(123).toString == "123.00000"
-   */
-  def fromLong(n: Long): FPNumber = FPNumber(n * SCALING_FACTOR)
+      /**
+       * Conversion Long ---> FPNumber.
+       * For example, when precision is set to 5:
+       * fromLong(123).toString == "123.00000"
+       */
+      def fromLong(n: Long): FPNumber
 
-  def fromBigDecimal(x: BigDecimal): FPNumber = new FPNumber((x * SCALING_FACTOR_BIG_DECIMAL).toBigInt)
+      /** Conversion BigDecimal ---> FPNumber.*/
+      def fromBigDecimal(x: BigDecimal): FPNumber
 
-  /**
-   * Conversion Double ---> CoinAmount.
-   */
-  def fromDouble(a: Double): FPNumber = FPNumber((a * SCALING_FACTOR_DOUBLE).round)
+      /**
+       * Conversion Double ---> FPNumber (with mathematical rounding).
+       */
+      def fromDouble(a: Double): FPNumber
 
-  def fromDoubleRoundingDown(a: Double): FPNumber = FPNumber((a * SCALING_FACTOR_DOUBLE).floor.toLong)
+      /** Conversion Double ---> FPNumber (with rounding towards negative infinity).*/
+      def fromDoubleRoundingDown(a: Double): FPNumber
 
-  def fromDoubleRoundingUp(a: Double): FPNumber = FPNumber((a * SCALING_FACTOR_DOUBLE).ceil.toLong)
+      /** Conversion Double ---> FPNumber (with rounding towards positive infinity).*/
+      def fromDoubleRoundingUp(a: Double): FPNumber
 
-  def fromFraction(f: Fraction): FPNumber = FPNumber(f.numerator) / FPNumber(f.denominator)
+      /** Conversion Fraction ---> FPNumber (with mathematical rounding).*/
+      def fromFraction(f: Fraction): FPNumber
 
-  def min(a: FPNumber, b: FPNumber): FPNumber = if (a < b) a else b
+      /** Returns smaller number from given two.*/
+      def min(a: FPNumber, b: FPNumber): FPNumber
 
-  def max(a: FPNumber, b: FPNumber): FPNumber = if (a > b) a else b
+      /** Returns bigger number from given two.*/
+      def max(a: FPNumber, b: FPNumber): FPNumber
 
-  def abs(a: FPNumber): FPNumber = if (a >= FPNumber.zero) a else a.negated
+      /** Cancels "minus" sign. */
+      def abs(a: FPNumber): FPNumber
 
-  /**
-   * Smallest value that could be represented with FPNumber, given the configured arithmetic precision
-   */
-  val quantum: FPNumber = FPNumber.one.decimalShift(- FIXED_POINT_ARITHMETIC_PRECISION)
+      /**
+       * Smallest value that could be represented with FPNumber, given the configured arithmetic precision
+       */
+      val quantum: FPNumber = FPNumber.one.decimalShift(- FIXED_POINT_ARITHMETIC_PRECISION)
 
-
-
+    }
 
 Fractions
 ^^^^^^^^^
 
+``Fraction`` implements arbitrary-precision mathematical quotient numbers. Internal representation is based on a pair
+of BigInteger values. We use it mostly for representing prices.
 
+The signature of class ``Fraction`` is as follows:
+
+.. code:: scala
+
+    class Fraction(x: BigInt, y: BigInt) extends Comparable[Fraction] {
+
+      def numerator: BigInt
+
+      def denominator: BigInt
+
+      /** Conversion Fraction ---> Double (rounding can occur) */
+      def toDouble: Double
+
+      /** Conversion BigInt ---> Fraction */
+      def this(x: BigInt): Fraction
+
+      /** Mathematical comparison of fractions, coherent with 'Comparable' interface */
+      override def compareTo(other: Fraction): Int
+
+      /** Adding of fractions. */
+      def +(that: Fraction): Fraction
+
+      /** Adding of a fraction and an integer value */
+      def +(that: BigInt): Fraction
+
+      /** Subtracting of fractions. */
+      def -(that: Fraction): Fraction
+
+      /** Multiplication of fractions. */
+      def *(that: Fraction): Fraction
+
+      /** Multiplication of a fraction by a BigInt value. */
+      def *(that: BigInt): Fraction
+
+      /** Division of fractions */
+      def /(that: Fraction): Fraction
+
+      /** Division of fractions. */
+      def /(that: BigInt): Fraction
+
+      /** x ---> -x */
+      def negated : Fraction
+
+      /** Mathematical 'signum' function over fractions. */
+      def sgn: Int
+
+      /** Conversion Fraction ---> BigInt. */
+      def toBigInt: BigInt
+
+      /** Converts fraction a/b to fraction b/a. */
+      def reciprocal: Fraction
+
+      /** Arithmetic comparison */
+      def >(that: Fraction): Boolean
+
+      /** Arithmetic comparison */
+      def >=(that: Fraction): Boolean
+
+      /** Arithmetic comparison */
+      def >(that: BigInt): Boolean
+
+      /** Arithmetic comparison */
+      def >=(that: BigInt): Boolean
+
+      /** Arithmetic comparison */
+      def <(that: Fraction): Boolean
+
+      /** Arithmetic comparison */
+      def <=(that: Fraction): Boolean
+
+      /** Arithmetic comparison */
+      def <(that: BigInt): Boolean
+
+      /** Arithmetic comparison */
+      def <=(that: BigInt): Boolean
+
+      /** Raises `this` to the power of n */
+      def ^(n: Int): Fraction
+
+    }
 
 Time
 ----
