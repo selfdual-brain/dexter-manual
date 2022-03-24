@@ -32,6 +32,8 @@ is statically configured via constant ``io.onomy.commons.FIXED_POINT_ARITHMETIC_
 This class is tailored to represent "money" values, i.e. it works mostly like integers. There are some cases when
 rounding occurs (these places are marked below).
 
+Internally, ``FPNumber`` instance is just represented as BigInt value ``pips``.
+
 The signature of ``FPNumber`` class is as follows:
 
 .. code:: scala
@@ -169,7 +171,8 @@ Additionally, there are some class-level functions associated with ``FPNumber``:
       def abs(a: FPNumber): FPNumber
 
       /**
-       * Smallest value that could be represented with FPNumber, given the configured arithmetic precision
+       * Smallest value that could be represented with FPNumber, given the configured
+       * arithmetic precision.
        */
       val quantum: FPNumber = FPNumber.one.decimalShift(- FIXED_POINT_ARITHMETIC_PRECISION)
 

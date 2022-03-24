@@ -155,12 +155,12 @@ either size of the liquidity pool to
 1. Half-market selection
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-We select the same half-market where ``pos`` belongs:
+We select the same half-market where the position belongs:
 
 .. code:: scala
 
-    private def limitBooksNextExecDecision(market: Market): Option[MarketSide] = {
-        return pos.normalizedMarketSide
+    def pickHalfMarket(position: Position, market: Market): Option[MarketSide] = {
+        return position.normalizedMarketSide
     }
 
 2: Swap preconditions
@@ -168,25 +168,27 @@ We select the same half-market where ``pos`` belongs:
 
 .. code:: scala
 
-    if (selectedHalfMarket.limitBook.isEmpty)
-        return RED_LIGHT
+    def swapPreconditionsCheck(selectedHalfMarket: HalfMarket): Decision = {
+        if (selectedHalfMarket.limitBook.isEmpty)
+            return Decision.RED_LIGHT
 
-    val limitHead: Position = selectedHalfMarket.limitBook.head
-    val r: Fraction = limitHead.exchangeRate
-    val a: FPNumber = market.ammBalanceOf(limitHead.order.askCoin)
-    val b: FPNumber = market.ammBalanceOf(limitHead.order.bidCoin)
-    val ammPrice: Fraction = Fraction(a, b)
+        val limitHead: Position = selectedHalfMarket.limitBook.head
+        val r: Fraction = limitHead.exchangeRate
+        val a: FPNumber = market.ammBalanceOf(limitHead.order.askCoin)
+        val b: FPNumber = market.ammBalanceOf(limitHead.order.bidCoin)
+        val ammPrice: Fraction = Fraction(a.pips, b.pips)
 
-    if (ammPrice <= r)
-      return RED_LIGHT
-    else {
-      val maxBidAmt: FPNumber = (a - b * r) * ((r + 1).reciprocal)
-      val strikeBidAmt: FPNumber = FPNumber.min(limitHead.outstandingAmount, maxBidAmt)
-      val strikeAskAmt: FPNumber = strikeBidAmt * r
-      if (strikeBidAmt > 0 && strikeAskAmt > 0)
-        return GREEN_LIGHT
-      else
-        return RED_LIGHT
+        if (ammPrice <= r)
+            return Decision.RED_LIGHT
+        else {
+          val maxBidAmt: FPNumber = (a - b ** r) ** ((r + 1).reciprocal)
+          val strikeBidAmt: FPNumber = FPNumber.min(limitHead.outstandingAmount, maxBidAmt)
+          val strikeAskAmt: FPNumber = strikeBidAmt ** r
+          if (strikeBidAmt > 0 && strikeAskAmt > FPNumber.zero)
+              return Decision.GREEN_LIGHT
+          else
+              return Decision.RED_LIGHT
+        }
     }
 
 3: Swap amounts
@@ -194,14 +196,18 @@ We select the same half-market where ``pos`` belongs:
 
 .. code:: scala
 
-    val limitHead: Position = selectedHalfMarket.limitBook.head
-    val r: Fraction = limitHead.exchangeRate
-    val a: FPNumber = market.ammBalanceOf(limitHead.order.askCoin)
-    val b: FPNumber = market.ammBalanceOf(limitHead.order.bidCoin)
-    val ammPrice: Fraction = Fraction(a, b)
-    val maxBidAmt: FPNumber = (a - b * r) * ((r + 1).reciprocal)
-    val y: FPNumber = FPNumber.min(limitHead.outstandingAmount, maxBidAmt)
-    val x: FPNumber = y * r
+    def createSwap(position: Position, bTime: Long): Swap = {
+        def calculateSwapAmounts(): (FPNumber, FP)
+        val limitHead: Position = selectedHalfMarket.limitBook.head
+        val r: Fraction = limitHead.exchangeRate
+        val a: FPNumber = market.ammBalanceOf(limitHead.order.askCoin)
+        val b: FPNumber = market.ammBalanceOf(limitHead.order.bidCoin)
+        val ammPrice: Fraction = Fraction(a.pips, b.pips)
+        val maxBidAmt: FPNumber = (a - b * r) ** ((r + 1).reciprocal)
+        val y: FPNumber = FPNumber.min(limitHead.outstandingAmount, maxBidAmt)
+        val x: FPNumber = y ** r
+        return new Swap(order = position.order, sold = y, bought = x, time = bTime)
+    }
 
 4: Executor loop termination
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -278,7 +284,7 @@ Solving this leads to:
 
   private var flipper: Boolean = false
 
-  private def limitBooksNextExecDecision(market: Market): Option[MarketSide] = {
+  def pickHalfMarket(position: Position, market: Market): Option[MarketSide] = {
     if (market.limitOrderBookAsks.isEmpty && market.limitOrderBookBids.isEmpty)
       return None
 
@@ -323,22 +329,23 @@ Solving this leads to:
 
 .. code:: scala
 
-    lazy val limitHead: Position = limitBook.head
-    val a: BigInt = halfMarketBA.poolBalance.pips
-    val b: BigInt = halfMarketAB.poolBalance.pips
-    val r: Fraction = limitHead.exchangeRate
-    val x: BigInt = r.numerator
-    val y: BigInt = r.denominator
+    def swapPreconditionsCheck(selectedHalfMarket: HalfMarket): Decision = {
+      lazy val limitHead: Position = limitBook.head
+      val a: BigInt = halfMarketBA.poolBalance.pips
+      val b: BigInt = halfMarketAB.poolBalance.pips
+      val r: Fraction = limitHead.exchangeRate
+      val x: BigInt = r.numerator
+      val y: BigInt = r.denominator
 
-    val ammPrice: Fraction = market.currentPriceDirected(askCoin, bidCoin)
+      val ammPrice: Fraction = market.currentPriceDirected(askCoin, bidCoin)
 
-    if (ammPrice <= r)
-      return RED_LIGHT
+      if (ammPrice <= r)
+        return Decision.RED_LIGHT
 
-    val maxBidAmt: FPNumber = FPNumber((a * y - b * x) / (2 * x))
-    val maxAmountOfBidCoinThatWillNotDrainAmmBelowMargin: FPNumber = (market.ammBalanceOf(askCoin) -  ammMinBalance) ** r.reciprocal
-    val strikeBidAmt: FPNumber = FPNumber.min(FPNumber.min(limitHead.amount, maxBidAmt), maxAmountOfBidCoinThatWillNotDrainAmmBelowMargin)
-    val strikeAskAmt: FPNumber = strikeBidAmt ** r
+      val maxBidAmt: FPNumber = FPNumber((a * y - b * x) / (2 * x))
+      val maxAmountOfBidCoinThatWillNotDrainAmmBelowMargin: FPNumber = (market.ammBalanceOf(askCoin) -  ammMinBalance) ** r.reciprocal
+      val strikeBidAmt: FPNumber = FPNumber.min(FPNumber.min(limitHead.amount, maxBidAmt), maxAmountOfBidCoinThatWillNotDrainAmmBelowMargin)
+      val strikeAskAmt: FPNumber = strikeBidAmt ** r
 
     if (strikeBidAmt > FPNumber.zero && strikeAskAmt > FPNumber.zero)
       return GREEN_LIGHT
