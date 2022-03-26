@@ -113,10 +113,10 @@ Arithmetic precision problems and their solution
 Internal working of the executor is vulnerable to "strange" effects caused by imperfectness of computer arithmetic.
 This effects generally disrupt the operation of mathematical definitions of the executor. Two particular problems are:
 
-  1. When (at least one side of) the AMM balance becomes small enough, integer rounding effects can cause significant
+  - When (at least one side of) the AMM balance becomes small enough, integer rounding effects can cause significant
      errors in calculated swap amounts.
 
-  2. When calculated swap amounts are small enough, integer rounding may cause limit-price invariant to fail.
+  - When calculated swap amounts are small enough, integer rounding may cause limit-price invariant to fail.
 
 To avoid such anomalies we generally apply a simple approach:
 
@@ -138,8 +138,9 @@ For example if the arithmetic precision is at the order 1e-18, then "reasonable"
 
   - SWAP_MIN_AMOUNT = 1e-10
 
-For clarity of executor algorithms - as exposed in this chapter - all checks related to above conditions are not
-included in the pseudo-code.
+Caution: For clarity of executor algorithms - as exposed in this chapter - all checks related to above
+conditions (1), (2), (3) are NOT included in the pseudo-code below. Please refer to the actual source code of
+classes ``TealDex``, ``TurquoiseDex`` and ``UniswapV2Dex`` for further details.
 
 Variant 1: TEAL executor
 ------------------------
@@ -204,9 +205,9 @@ We select the same half-market where the position belongs:
         val b: FPNumber = market.ammBalanceOf(limitHead.order.bidCoin)
         val ammPrice: Fraction = Fraction(a.pips, b.pips)
         val maxBidAmt: FPNumber = (a - b * r) ** ((r + 1).reciprocal)
-        val y: FPNumber = FPNumber.min(limitHead.outstandingAmount, maxBidAmt)
-        val x: FPNumber = y ** r
-        return new Swap(order = position.order, sold = y, bought = x, time = bTime)
+        val strikeBidAmt: FPNumber = FPNumber.min(limitHead.outstandingAmount, maxBidAmt)
+        val strikeAskAmt: FPNumber = strikeBidAmt ** r
+        return new Swap(order = position.order, sold = strikeBidAmt, bought = strikeAskAmt, time = bTime)
     }
 
 4: Executor loop termination
@@ -279,6 +280,11 @@ Solving this leads to:
 
 1. Half-market selection
 ^^^^^^^^^^^^^^^^^^^^^^^^
+
+We check head positions of bids and asks half-markets to understand if they are possibly ready to execute next swap,
+given the current AMM price value. Only-ask, only-bid and none-of-them are easy cases - we select the only side
+which is possible. The only tricky case is when both head bid and head ask could be picked for execution in the next
+step. In such case we pick the one with bigger overhang.
 
 .. code:: scala
 
@@ -357,31 +363,31 @@ Solving this leads to:
 
 .. code:: scala
 
-    lazy val limitHead: Position = limitBook.head
-    val a: BigInt = halfMarketBA.poolBalance.pips
-    val b: BigInt = halfMarketAB.poolBalance.pips
-    val r: Fraction = limitHead.exchangeRate
-    val x: BigInt = r.numerator
-    val y: BigInt = r.denominator
+    def createSwap(position: Position, bTime: Long): Swap = {
+      lazy val limitHead: Position = limitBook.head
+      val a: BigInt = halfMarketBA.poolBalance.pips
+      val b: BigInt = halfMarketAB.poolBalance.pips
+      val r: Fraction = limitHead.exchangeRate
+      val x: BigInt = r.numerator
+      val y: BigInt = r.denominator
 
-    val ammPrice: Fraction = market.currentPriceDirected(askCoin, bidCoin)
+      val ammPrice: Fraction = market.currentPriceDirected(askCoin, bidCoin)
 
-    if (ammPrice <= r)
-      return RED_LIGHT
+      if (ammPrice <= r)
+        return RED_LIGHT
 
-    val maxBidAmt: FPNumber = FPNumber((a * y - b * x) / (2 * x))
-    val maxAmountOfBidCoinThatWillNotDrainAmmBelowMargin: FPNumber = (market.ammBalanceOf(askCoin) -  ammMinBalance) * r.reciprocal
-    val strikeBidAmt: FPNumber = FPNumber.min(FPNumber.min(limitHead.amount, maxBidAmt), maxAmountOfBidCoinThatWillNotDrainAmmBelowMargin)
-    val strikeAskAmt: FPNumber = strikeBidAmt * r
+      val maxBidAmt: FPNumber = FPNumber((a * y - b * x) / (2 * x))
+      val maxAmountOfBidCoinThatWillNotDrainAmmBelowMargin: FPNumber = (market.ammBalanceOf(askCoin) -  ammMinBalance) ** r.reciprocal
+      val strikeBidAmt: FPNumber = FPNumber.min(FPNumber.min(limitHead.outstandingAmount, maxBidAmt), maxAmountOfBidCoinThatWillNotDrainAmmBelowMargin)
+      val strikeAskAmt: FPNumber = strikeBidAmt ** r
 
-    val y: FPNumber = FPNumber.min(limitHead.outstandingAmount, maxBidAmt)
-    val x: FPNumber = y * r
-
+      return new Swap(order = position.order, sold = strikeBidAmt, bought = strikeAskAmt, time = bTime)
+    }
 
 4: Executor loop termination
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-We terminate unconditionally. This means that the executor loop has always only one iteration.
+We ter
 
 
 Variant 3: UNISWAP_HYBRID executor

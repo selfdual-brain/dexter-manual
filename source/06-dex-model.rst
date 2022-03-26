@@ -683,7 +683,6 @@ and ``BBB`` and the price direction considered is ``AAA -> BBB``.
   This is an position-level value. It is the average price achieved so far given all the swaps executed in
   the context of given position. The way achieved price is calculated depends on the direction of the position
   vs the direction of the price. As we want to calculate the price in direction `AAA -> BBB``, this works as follows:
-.
     - for a position ``p`` with direction ``AAA -> BBB`` achieved price defined as ``p.soldSoFar / p.boughtSoFar``.
     - for a position ``p`` with direction ``BBB -> AAA`` achieved price defined as ``p.boughtSoFar / p.soldSoFar``.
 
