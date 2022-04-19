@@ -1,14 +1,15 @@
 07. Executors
 =============
 
-As a DEX operates on top of a blockchain, it follows the basic principle of blockchains: there is a decentralized
+Because a DEX operates on top of a blockchain, it follows the basic principle of blockchains: there is a decentralized
 ledger of transactions which validators are building. So, one can see a DEX as an evolving state of a sequential
 computer.
 
 As was explained in chapter 6, we fixed a certain set of transaction types and we fixed their semantics for all but one.
-The single exceptional case being ``add-order`` transaction. On the technical level, a single ``add-order`` execution
-must be resolved to a sequence of swaps. This is the job of an **executor**. We consider an executor to be pluggable
-part of DEX implementation.
+The single exceptional case being ``add-order`` transaction.
+
+On the technical level, a single ``add-order`` execution must be resolved to a sequence of swaps. This is the job of
+an **executor**. We consider an executor to be pluggable part of DEX implementation.
 
 In this chapter we specify the algorithms of all executors currently supported in Dexter. The dynamic behaviour of these
 algorithms and especially the comparative measurements of their statistics is the primary motivation behind creating
@@ -17,19 +18,22 @@ Dexter.
 Space of executors research
 ---------------------------
 
-In the current version of Dexter we limit our attention to certain natural space of most simplistic executors. Our
-limiting conditions are:
+The space of all possible executor is vast. Dexter was created as a proof of concept tool for investigating the
+contents of this space.
+
+However, in the current version of Dexter, we limit our attention to rather "simplistic" class of executors,
+specifically, we require executors to be compliant with the following rules:
 
 **Rule #1: Equality of traders**
   Swaps chronology can depend only on the state of markets (i.e. it is not allowed that it depends on the state of
   traders).
 
   This rule means that the exchange in not "biased" on trader's identity or other trader properties (such as wealth
-  for example).
+  of a trader for example).
   In lame terms it means that all traders are considered "equally important" by the executor - i.e. from the perspective
   of an executor, any trader is seen as "just an account number" (similar concept to "all citizens are considered equal
-  by law in a democracy"). Current balance of trader's account, past history of trading operations and trader's name
-  - all this cannot influence the path of DEX evolution that an executor is creating.
+  by law in a democracy"). In particular - current balance of trader's account, past history of his trading activity
+  and trader's name - all this cannot influence the path of DEX evolution that an executor is creating.
 
 **Rule #2: Isolation of markets**
   Arrival of a new order generates swaps only on the market where this order belongs to.
@@ -85,27 +89,23 @@ outline the template of such loop by extending the activity diagram in from prev
 
 Places marked above with red asterisk are where non-trivial logic must be plugged-in:
 
-**1: Half-market selection**
+**1: Making next executor decision**
   At this point, one of two half-markets must be picked. This is equivalent to selecting a direction: :math:`AAA \rightarrow BBB`
   or :math:`BBB \rightarrow AAA`. In the context of "oriented" market, this means selecting "asks" or "bids" side
   of the order book.
+  Additionally, the order type (``Limit`` vs ``Stop``) must be selected here.
+  An executor is free to give up at this point, if the state of the market does not allow for executing of any order.
 
-**2: Swap preconditions**
+**2: Checking swap preconditions**
   At this point swap preconditions are checked. Red light will abort swap creation and terminate the executor loop.
 
-**3: Swap amounts**
+**3: Calculating swap amount and executing the swap**
   Deciding on amounts of the next swap to be executed. Because of **Rule #5: Natural trading priority**, the next swap
-  to be executed must relate to the position at the head of the positions list (because the positions list is ordered
-  by price-then-order-time.
+  to be executed must be for the head position on the positions collection (because the positions list is ordered
+  by price-then-order-time).
 
-**4: Executor loop termination**
-  Deciding if the executor loop should continue or exit.
-
-In the algorithms of the executor loop we outline below, ``pos`` is the just-added position. While defining a new swap,
-``x`` is the amount of tokens received from AMM and ``y`` is the amount of tokens given to AMM.
-
-We follow attributes
-and methods as defined in the UML model.
+**4: Post-swap assertions**
+  Extension point for plugging-in diagnostic assertions to be checked after every swap.
 
 Arithmetic precision problems and their solution
 ------------------------------------------------
@@ -138,9 +138,202 @@ For example if the arithmetic precision is at the order 1e-18, then "reasonable"
 
   - SWAP_MIN_AMOUNT = 1e-10
 
-Caution: For clarity of executor algorithms - as exposed in this chapter - all checks related to above
-conditions (1), (2), (3) are NOT included in the pseudo-code below. Please refer to the actual source code of
-classes ``TealDex``, ``TurquoiseDex`` and ``UniswapV2Dex`` for further details.
+
+Executor loop details
+---------------------
+
+The general pattern of open-order processing is implemented in class ``ExecutorTemplate``. The executor loop is part
+of this:
+
+.. code:: scala
+
+  def open(order: Order): Unit = {
+
+    //log diagnostic info "new order arrived"
+    if (coreCallsDump.isDefined)
+      coreCallsDump.get.print(s"[btime $blockchainTime] [rtime ${clock.apply()}] open order: id=${order.id} type=${order.orderType} account=${order.accountAddress}" +
+        s" askCoin=${order.askCoin} bidCoin=${order.bidCoin} price=${order.exchangeRate.toDouble} amount=${order.amount} exptime=${order.expirationTimepoint}")
+
+    //check if the account address if valid
+    precondition(hash2account.contains(order.accountAddress), s"unknown account: ${order.accountAddress}")
+
+    //decode account address to account instance
+    val account: Account = hash2account(order.accountAddress)
+
+    //find relevant market and half-market
+    val coinPairAB: CoinPair = CoinPair(order.askCoin, order.bidCoin)
+    val halfMarketAB: HalfMarket = coinPair2HalfMarket(coinPairAB)
+    val market: Market = coinPair2Market(coinPairAB.normalized)
+
+    //purge expired orders on this market
+    purgeExpiredPositionsOnMarket(market)
+
+    //check if the trader has enough funds to place this order
+    precondition (order.amount <= account.getFreeBalanceFor(order.sellCoin), s"order amount exceeds free balance for this account and coin: ${account.getFreeBalanceFor(order.sellCoin)}")
+
+    //create new position instance (wrapping the order)
+    val position = Position(order, market, account, blockchainTime, clock.apply())
+    hash2position += order.id -> position
+
+    //lock amount of tokens on trader's account corresponding to sell amount of this order
+    account.addPosition(position)
+
+    //add position to the order book
+    halfMarketAB.addPosition(position)
+
+    //update statistics
+    market.onPositionOpened(position)
+
+    //log diagnostic info "new position added"
+    if (coreCallsDump.isDefined)
+      coreCallsDump.get.print(s"[btime $blockchainTime] [rtime ${clock.apply()}] created new position for order ${position.id} normalized-amount=${position.normalizedAmount} normalized-price=${position.normalizedLimitPrice.toDouble}")
+
+    //executor loop
+    var n = 1
+    var lastDecision: Option[(MarketSide, OrderType)] = executorNextDecision(market, position)
+    var lastExecutionWasOk: Boolean = true
+    while (n <= hamsterConstant & lastDecision.nonEmpty && lastExecutionWasOk && market.isAmmBalanceAboveTradingMinimum) {
+      lastExecutionWasOk = lastDecision match {
+        case Some((MarketSide.Asks, OrderType.Limit)) => attemptCreatingNextSwap(n, market, market.halfMarketAsks, OrderType.Limit)
+        case Some((MarketSide.Bids, OrderType.Limit)) => attemptCreatingNextSwap(n, market, market.halfMarketBids, OrderType.Limit)
+        case Some((MarketSide.Asks, OrderType.Stop)) => attemptCreatingNextSwap(n, market, market.halfMarketAsks, OrderType.Stop)
+        case Some((MarketSide.Bids, OrderType.Stop)) => attemptCreatingNextSwap(n, market, market.halfMarketBids, OrderType.Stop)
+      }
+      n += 1
+      if (lastExecutionWasOk)
+        lastDecision = executorNextDecision(market, position)
+    }
+  }
+
+Extension points - marked previously as red asterisks on the diagram - are encoded as corresponding abstract methods.
+For implementing a specific executor, one needs to provide implementation of these methods only:
+
+.. code:: scala
+
+  def executorNextDecision(market: Market, newPositionThatTriggeredTheLoop: Position): Option[(MarketSide, OrderType)]
+
+  def swapPreconditionsCheck(
+                              market: Market,
+                              halfMarketAB: HalfMarket,
+                              askCoin: Coin, //buy coin
+                              bidCoin: Coin, //sell coin
+                              position: Position, //position for which the swap is to be executed
+                              a: FPNumber, //AMM balance of ask coin
+                              b: FPNumber, //AMM balance of bid coin
+                              r: Fraction, //limit price as declared in the order
+                              ammPrice: Fraction): Decision
+
+  //returns (sellAmount, buyAmount) - where sell/buy meaning is from the perspective of the trader
+  def calculateSwapAmounts(
+                            market: Market,
+                            halfMarketAB: HalfMarket,
+                            askCoin: Coin, //buy coin
+                            bidCoin: Coin, //sell coin
+                            position: Position, //position for which the swap is to be executed
+                            a: FPNumber, //AMM balance of ask coin
+                            b: FPNumber, //AMM balance of bid coin
+                            r: Fraction, //limit price as declared in the order
+                            ammPrice: Fraction): (FPNumber, FPNumber)
+
+  def postSwapAssertions(
+                          market: Market,
+                          halfMarket: HalfMarket,
+                          position: Position,
+                          sellAmount: FPNumber,
+                          sellCoin: Coin,
+                          buyAmount: FPNumber,
+                          buyCoin: Coin,
+                          ammPriceBeforeSwap: Fraction): Unit
+
+Most complex part is the "attempt to create next swap". This was not covered in detail on the diagram above:
+
+.. code:: scala
+
+  def attemptCreatingNextSwap(hamsterLoopIteration: Int, market: Market, halfMarketAB: HalfMarket, orderType: OrderType): Boolean = {
+    val askCoin: Coin = halfMarketAB.coinPair.left
+    val bidCoin: Coin = halfMarketAB.coinPair.right
+
+    lazy val headPosition: Position = orderType match {
+      case OrderType.Limit => halfMarketAB.limits.head
+      case OrderType.Stop => halfMarketAB.stops.head
+    }
+
+    val a: FPNumber = market.ammBalanceOf(askCoin)
+    val b: FPNumber = market.ammBalanceOf(bidCoin)
+    val r: Fraction = headPosition.exchangeRate
+    val ammPrice: Fraction = market.currentPriceDirected(askCoin, bidCoin)
+
+    if (coreCallsDump.isDefined)
+      coreCallsDump.get.print(s"limit-execute: (iteration $hamsterLoopIteration) askCoin=$askCoin [balance $a] bidCoin=$bidCoin [balance $b] directed-amm-price=${ammPrice.toDouble}" +
+        s" head-position=${headPosition.id} outstanding-amount=${headPosition.outstandingAmount} limit-price=${FPNumber.fromFraction(r)}")
+
+    swapPreconditionsCheck(market, halfMarketAB, askCoin, bidCoin, headPosition, a, b, r, ammPrice) match {
+      case Decision.GREEN =>
+        val (sellAmount, buyAmount): (FPNumber, FPNumber) = calculateSwapAmounts(market, halfMarketAB, askCoin, bidCoin, headPosition, a, b, r, ammPrice)
+
+        //negative amounts are considered a bug in 'calculateSwapAmounts'
+        assert(sellAmount >= FPNumber.zero && buyAmount >= FPNumber.zero, s"calculateSwapAmounts() returned negative value: sellAmount=$sellAmount buyAmount=$buyAmount")
+
+        //avoid "nano" swaps (below SWAP_MIN_AMOUNT), unless this is a complete filling case
+        if (sellAmount <= swapMinAmount || buyAmount <= swapMinAmount)
+          if (headPosition.amount > swapMinAmount)
+            return false
+
+        //zero amount is not considered a bug in 'calculateSwapAmounts', but we will not proceed with swap execution
+        if (sellAmount == FPNumber.zero || buyAmount == FPNumber.zero)
+          return false
+
+        //we need to distinguish between partial filling and complete filling
+        if (headPosition.amount == sellAmount) {
+          //case 1: complete filling
+          if (coreCallsDump.isDefined)
+            coreCallsDump.get.print(s"executor decision: complete filling of $headPosition")
+          val normalizedAmount: FPNumber = headPosition.normalizedAmount
+          headPosition.registerCompleteFilling(sold = sellAmount, bought = buyAmount, blockchainTime)
+          orderType match {
+            case OrderType.Limit => halfMarketAB.limits.removeElementAtIndex(0)
+            case OrderType.Stop => halfMarketAB.stops.removeElementAtIndex(0)
+          }
+          market.onPositionFilled(headPosition, normalizedAmount)
+          headPosition.account.removePosition(headPosition)
+          dumpFillingInfo(headPosition, sold = sellAmount, bought = buyAmount, isCompleteFilling = true)
+        } else {
+          //case 2: partial filling
+          if (coreCallsDump.isDefined)
+            coreCallsDump.get.print(s"executor decision: partial filling of $headPosition")
+          val oldNormalizedAmount: FPNumber = headPosition.normalizedAmount
+          headPosition.registerIncompleteFilling(sold = sellAmount, bought = buyAmount, blockchainTime)
+          val delta: FPNumber = oldNormalizedAmount - headPosition.normalizedAmount
+          market.onPositionPartiallyFilled(headPosition, delta)
+          dumpFillingInfo(headPosition, sold = sellAmount, bought = buyAmount, isCompleteFilling = false)
+        }
+
+        //update statistics
+        swapExecutionsCounter += 1
+
+        //update account balances (to reflect the swap execution)
+        headPosition.account.updateBalance(bidCoin, sellAmount.negated)
+        headPosition.account.updateBalance(askCoin, buyAmount)
+
+        //update the liquidity pool (to reflect the swap execution)
+        market.updateLiquidityPool(bidCoin, sellAmount)
+        market.updateLiquidityPool(askCoin, buyAmount.negated)
+
+        //accumulation of some statistics for the AMM
+        tokensExchangedIn.increment(bidCoin, sellAmount)
+        tokensExchangedOut.increment(askCoin, buyAmount)
+
+        //extension point for more assertions
+        postSwapAssertions(market, halfMarketAB, headPosition, sellAmount, bidCoin, buyAmount, askCoin, ammPrice)
+
+        //we completed the swap with success
+        return true
+
+      case Decision.RED =>
+        //abort the swap
+        return false
+    }
+  }
 
 Variant 1: TEAL executor
 ------------------------
@@ -153,77 +346,86 @@ https://github.com/onomyprotocol/specs/
 On top of the specification we apply the "minimal trading balance" check on the AMM level. We just do not allow
 either size of the liquidity pool to
 
-1. Half-market selection
-^^^^^^^^^^^^^^^^^^^^^^^^
+1. Executor next decision
+^^^^^^^^^^^^^^^^^^^^^^^^^
 
-We select the same half-market where the position belongs:
+We select the same half-market where the position belongs.
+
+In this variant, the value of ``HAMSTER_CONSTANT`` is hardcoded to 1, so the executor loop has always at most 1 iteration.
 
 .. code:: scala
 
-    def pickHalfMarket(position: Position, market: Market): Option[MarketSide] = {
-        return position.normalizedMarketSide
+  override def executorNextDecision(market: Market, newPositionThatTriggeredTheLoop: Position): Option[(MarketSide, OrderType)] =
+    Some(newPositionThatTriggeredTheLoop.normalizedMarketSide, newPositionThatTriggeredTheLoop.orderType)
+
+
+2: Swap preconditions check
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The head of order book is ready for next swap if the current value of ``ammPrice`` exceeds the limit price of the order.
+Please notice that we compare prices calculated in the same direction.
+
+
+.. code:: scala
+
+  override def swapPreconditionsCheck(
+                                       market: Market,
+                                       halfMarketAB: HalfMarket,
+                                       askCoin: Coin,
+                                       bidCoin: Coin,
+                                       position: Position,
+                                       a: FPNumber,
+                                       b: FPNumber,
+                                       r: Fraction,
+                                       ammPrice: Fraction): Decision = {
+    position.orderType match {
+      case OrderType.Limit => if (ammPrice > r) Decision.GREEN else Decision.RED
+      case OrderType.Stop => if (ammPrice < r) Decision.GREEN else Decision.RED
     }
+  }
 
-2: Swap preconditions
-^^^^^^^^^^^^^^^^^^^^^
+3: Calculate swap amounts
+^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. code:: scala
-
-    def swapPreconditionsCheck(selectedHalfMarket: HalfMarket): Decision = {
-        if (selectedHalfMarket.limitBook.isEmpty)
-            return Decision.RED_LIGHT
-
-        val limitHead: Position = selectedHalfMarket.limitBook.head
-        val r: Fraction = limitHead.exchangeRate
-        val a: FPNumber = market.ammBalanceOf(limitHead.order.askCoin)
-        val b: FPNumber = market.ammBalanceOf(limitHead.order.bidCoin)
-        val ammPrice: Fraction = Fraction(a.pips, b.pips)
-
-        if (ammPrice <= r)
-            return Decision.RED_LIGHT
-        else {
-          val maxBidAmt: FPNumber = (a - b ** r) ** ((r + 1).reciprocal)
-          val strikeBidAmt: FPNumber = FPNumber.min(limitHead.outstandingAmount, maxBidAmt)
-          val strikeAskAmt: FPNumber = strikeBidAmt ** r
-          if (strikeBidAmt > 0 && strikeAskAmt > FPNumber.zero)
-              return Decision.GREEN_LIGHT
-          else
-              return Decision.RED_LIGHT
-        }
-    }
-
-3: Swap amounts
-^^^^^^^^^^^^^^^
+The "magic" formula of swap creation is defined here.
 
 .. code:: scala
 
-    def createSwap(position: Position, bTime: Long): Swap = {
-        def calculateSwapAmounts(): (FPNumber, FP)
-        val limitHead: Position = selectedHalfMarket.limitBook.head
-        val r: Fraction = limitHead.exchangeRate
-        val a: FPNumber = market.ammBalanceOf(limitHead.order.askCoin)
-        val b: FPNumber = market.ammBalanceOf(limitHead.order.bidCoin)
-        val ammPrice: Fraction = Fraction(a.pips, b.pips)
-        val maxBidAmt: FPNumber = (a - b * r) ** ((r + 1).reciprocal)
-        val strikeBidAmt: FPNumber = FPNumber.min(limitHead.outstandingAmount, maxBidAmt)
+  override def calculateSwapAmounts(
+                                     market: Market,
+                                     halfMarketAB: HalfMarket,
+                                     askCoin: Coin,
+                                     bidCoin: Coin,
+                                     position: Position,
+                                     a: FPNumber,
+                                     b: FPNumber,
+                                     r: Fraction,
+                                     ammPrice: Fraction): (FPNumber, FPNumber) =
+    position.orderType match {
+      case OrderType.Limit =>
+        val maxBidAmt: FPNumber = (a - b ** r) ** ((r + 1).reciprocal)
+        val strikeBidAmt: FPNumber = FPNumber.min(position.outstandingAmount, maxBidAmt)
         val strikeAskAmt: FPNumber = strikeBidAmt ** r
-        return new Swap(order = position.order, sold = strikeBidAmt, bought = strikeAskAmt, time = bTime)
+        (strikeBidAmt, strikeAskAmt)
+      case OrderType.Stop =>
+        val minMemberABal: FPNumber = a / FPNumber.fromLong(2)
+        val maxMemberBBal: FPNumber = a + b - minMemberABal
+        val maxMemberBAmt: FPNumber = maxMemberBBal - b
+        val strikeBidAmt: FPNumber = FPNumber.min(position.outstandingAmount, maxMemberBAmt)
+        val strikeAskAmt: FPNumber = (strikeBidAmt * (a - strikeBidAmt)) / (b + strikeBidAmt)
+        (strikeBidAmt, strikeAskAmt)
     }
-
-4: Executor loop termination
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-We terminate unconditionally. This means that the executor loop has always only one iteration.
 
 Variant 2: TURQUOISE executor
 -----------------------------
 
 This executor is based on the idea that we execute orders always using the limit price as declared in the order itself
-- as long as the AMM-price allows to do so without sponsoring the trader. There is no trading fee, instead the DEX
-makes money on the difference between AMM price vs limit price.
+- as long as the AMM-price allows to do so without introducing loss on DEX side. This approach is rather "unusual"
+when compared to FOREX-style exchanges, where the swap price is always the current market price.
 
-The executor loop has fixed number of iterations - defined by "hamster constant". At every iteration, the half market
-selection is based on picking the one with bigger overhang.
+Here we allow the ``HAMSTER_CONSTANT`` to be arbitrary number bigger than zero.
+
+Caution: STOP ORDERS are not supported.
 
 Math derivation
 ^^^^^^^^^^^^^^^
@@ -278,27 +480,30 @@ Solving this leads to:
     y=\dfrac{a-br}{2r}
     \end{cases}
 
-1. Half-market selection
-^^^^^^^^^^^^^^^^^^^^^^^^
+1. Executor next decision
+^^^^^^^^^^^^^^^^^^^^^^^^^
 
 We check head positions of bids and asks half-markets to understand if they are possibly ready to execute next swap,
 given the current AMM price value. Only-ask, only-bid and none-of-them are easy cases - we select the only side
 which is possible. The only tricky case is when both head bid and head ask could be picked for execution in the next
 step. In such case we pick the one with bigger overhang.
 
+In case of a tie, we use a boolean variable ``flipper``, to pick one side, and then we negate ``flipper`` so that
+in the case of next tie, the decision will be in favour of the other side.
+
 .. code:: scala
 
   private var flipper: Boolean = false
 
-  def pickHalfMarket(position: Position, market: Market): Option[MarketSide] = {
+  override def executorNextDecision(market: Market, newPositionThatTriggeredTheLoop: Position): Option[(MarketSide, OrderType)] = {
     if (market.limitOrderBookAsks.isEmpty && market.limitOrderBookBids.isEmpty)
       return None
 
     if (market.limitOrderBookBids.isEmpty)
-      return Some(MarketSide.Asks)
+      return Some((MarketSide.Asks, OrderType.Limit))
 
     if (market.limitOrderBookAsks.isEmpty)
-      return Some(MarketSide.Bids)
+      return Some((MarketSide.Bids, OrderType.Limit))
 
     val topBid: Fraction = market.limitOrderBookBids.head.normalizedLimitPrice
     val bottomAsk: Fraction = market.limitOrderBookAsks.head.normalizedLimitPrice
@@ -308,96 +513,79 @@ step. In such case we pick the one with bigger overhang.
       return None
 
     if (bottomAsk < ammPrice && topBid <= ammPrice)
-      return Some(MarketSide.Asks)
+      return Some((MarketSide.Asks, OrderType.Limit))
 
     if (topBid > ammPrice && bottomAsk >= ammPrice)
-      return Some(MarketSide.Bids)
+      return Some((MarketSide.Bids, OrderType.Limit))
 
     val bidOverhang = topBid - ammPrice
     val askOverHang = ammPrice - bottomAsk
 
     if (bidOverhang > askOverHang)
-      return Some(MarketSide.Bids)
+      return Some((MarketSide.Bids, OrderType.Limit))
 
     if (bidOverhang < askOverHang)
-      return Some(MarketSide.Asks)
+      return Some((MarketSide.Asks, OrderType.Limit))
 
     //they are equal, so we pick one pointed by the flipper
     flipper = ! flipper
     flipper match {
-      case true => return Some(MarketSide.Bids)
-      case false => return Some(MarketSide.Asks)
+      case true => return Some((MarketSide.Bids, OrderType.Limit))
+      case false => return Some((MarketSide.Asks, OrderType.Limit))
     }
   }
 
-2: Swap preconditions
-^^^^^^^^^^^^^^^^^^^^^
+2: Swap preconditions check
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Same as in TEAL variant, but without stop orders support.
 
 .. code:: scala
 
-    def swapPreconditionsCheck(selectedHalfMarket: HalfMarket): Decision = {
-      lazy val limitHead: Position = limitBook.head
-      val a: BigInt = halfMarketBA.poolBalance.pips
-      val b: BigInt = halfMarketAB.poolBalance.pips
-      val r: Fraction = limitHead.exchangeRate
-      val x: BigInt = r.numerator
-      val y: BigInt = r.denominator
-
-      val ammPrice: Fraction = market.currentPriceDirected(askCoin, bidCoin)
-
-      if (ammPrice <= r)
-        return Decision.RED_LIGHT
-
-      val maxBidAmt: FPNumber = FPNumber((a * y - b * x) / (2 * x))
-      val maxAmountOfBidCoinThatWillNotDrainAmmBelowMargin: FPNumber = (market.ammBalanceOf(askCoin) -  ammMinBalance) ** r.reciprocal
-      val strikeBidAmt: FPNumber = FPNumber.min(FPNumber.min(limitHead.amount, maxBidAmt), maxAmountOfBidCoinThatWillNotDrainAmmBelowMargin)
-      val strikeAskAmt: FPNumber = strikeBidAmt ** r
-
-    if (strikeBidAmt > FPNumber.zero && strikeAskAmt > FPNumber.zero)
-      return GREEN_LIGHT
+  override def swapPreconditionsCheck(
+                                       market: Market,
+                                       halfMarketAB: HalfMarket,
+                                       askCoin: Coin,
+                                       bidCoin: Coin,
+                                       position: Position,
+                                       a: FPNumber,
+                                       b: FPNumber,
+                                       r: Fraction,
+                                       ammPrice: Fraction): Decision =
+    if (ammPrice > r)
+      Decision.GREEN
     else
-      return RED_LIGHT
+      Decision.RED
 
-3: Swap amounts
-^^^^^^^^^^^^^^^
+3: Calculate swap amounts
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Following the math derivation above.
 
 .. code:: scala
 
-    def createSwap(position: Position, bTime: Long): Swap = {
-      lazy val limitHead: Position = limitBook.head
-      val a: BigInt = halfMarketBA.poolBalance.pips
-      val b: BigInt = halfMarketAB.poolBalance.pips
-      val r: Fraction = limitHead.exchangeRate
-      val x: BigInt = r.numerator
-      val y: BigInt = r.denominator
+  override def calculateSwapAmounts(
+                                     market: Market,
+                                     halfMarketAB: HalfMarket,
+                                     askCoin: Coin,
+                                     bidCoin: Coin,
+                                     position: Position,
+                                     a: FPNumber,
+                                     b: FPNumber,
+                                     r: Fraction,
+                                     ammPrice: Fraction): (FPNumber, FPNumber) = {
 
-      val ammPrice: Fraction = market.currentPriceDirected(askCoin, bidCoin)
-
-      if (ammPrice <= r)
-        return RED_LIGHT
-
-      val maxBidAmt: FPNumber = FPNumber((a * y - b * x) / (2 * x))
-      val maxAmountOfBidCoinThatWillNotDrainAmmBelowMargin: FPNumber = (market.ammBalanceOf(askCoin) -  ammMinBalance) ** r.reciprocal
-      val strikeBidAmt: FPNumber = FPNumber.min(FPNumber.min(limitHead.outstandingAmount, maxBidAmt), maxAmountOfBidCoinThatWillNotDrainAmmBelowMargin)
-      val strikeAskAmt: FPNumber = strikeBidAmt ** r
-
-      return new Swap(order = position.order, sold = strikeBidAmt, bought = strikeAskAmt, time = bTime)
-    }
-
-4: Executor loop termination
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-We ter
-
+    val x: BigInt = r.numerator
+    val y: BigInt = r.denominator
+    val maxBidAmt: FPNumber = FPNumber((a.pips * y - b.pips * x) / (2 * x))
+    val maxAmountOfBidCoinThatWillNotDrainAmmBelowMargin: FPNumber = (market.ammBalanceOf(askCoin) -  ammMinBalance) ** r.reciprocal
+    val strikeBidAmt: FPNumber = FPNumber.min(FPNumber.min(position.outstandingAmount, maxBidAmt), maxAmountOfBidCoinThatWillNotDrainAmmBelowMargin)
+    val strikeAskAmt: FPNumber = strikeBidAmt ** r
+    return (strikeBidAmt, strikeAskAmt)
+  }
 
 Variant 3: UNISWAP_HYBRID executor
 ----------------------------------
 
 
-
-
-Complications caused by finite precision
-----------------------------------------
-
-sfsdfs
 
